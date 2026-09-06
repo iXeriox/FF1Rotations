@@ -16,6 +16,7 @@ export default {
     await store.update(interaction.guildId, (state) => {
       state.players = [];
       state.leaders = [];
+      state.lastGroups = [];
       if (history) {
         state.pairCounts = {};
         state.rounds = 0;

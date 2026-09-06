@@ -26,6 +26,11 @@ const groupingPlaceholder = () => new EmbedBuilder()
   .setTitle('Rotation groups')
   .setDescription('No groups have been generated yet. An administrator can use `/group` when everyone is ready.');
 
+const groupEmbeds = (groups) => groups.map((group, index) => new EmbedBuilder()
+  .setColor(0x57f287)
+  .setTitle(`Team ${index + 1}`)
+  .setDescription(`**Leader:** ${mention(group[0])}\n\n**Players**\n${group.length > 1 ? group.slice(1).map(mention).join('\n') : '_No players assigned_'}`));
+
 async function getMessage(channel, messageId) {
   if (!messageId) return null;
   return channel.messages.fetch(messageId).catch(() => null);
@@ -33,9 +38,31 @@ async function getMessage(channel, messageId) {
 
 async function findOrCreateChannel(guild, savedId, name, options) {
   const saved = savedId ? await guild.channels.fetch(savedId).catch(() => null) : null;
-  if (saved?.type === ChannelType.GuildText) return saved;
-  const existing = guild.channels.cache.find((channel) => channel.type === ChannelType.GuildText && channel.name === name);
-  return existing ?? guild.channels.create({ name, type: ChannelType.GuildText, ...options });
+  if (saved?.type === ChannelType.GuildText) {
+    if (saved.parentId !== options.parent) {
+      await saved.setParent(options.parent, { lockPermissions: false, reason: 'Restore the rotation channel to its category' });
+    }
+    return saved;
+  }
+  return guild.channels.create({ name, type: ChannelType.GuildText, ...options });
+}
+
+async function reconcileOverflowMessages(channel, savedIds, embeds) {
+  const ids = [];
+  const chunks = [];
+  for (let index = 10; index < embeds.length; index += 10) chunks.push(embeds.slice(index, index + 10));
+
+  for (const [index, chunk] of chunks.entries()) {
+    let message = await getMessage(channel, savedIds[index]);
+    if (message) await message.edit({ embeds: chunk });
+    else message = await channel.send({ embeds: chunk });
+    ids.push(message.id);
+  }
+  await Promise.all(savedIds.slice(chunks.length).map(async (messageId) => {
+    const message = await getMessage(channel, messageId);
+    if (message) await message.delete();
+  }));
+  return ids;
 }
 
 export function createRotationUi(store) {
@@ -44,13 +71,11 @@ export function createRotationUi(store) {
     let leaderRole = current.ui.leaderRoleId
       ? await guild.roles.fetch(current.ui.leaderRoleId).catch(() => null)
       : null;
-    leaderRole ??= guild.roles.cache.find((role) => role.name === 'Rotation Leader');
     leaderRole ??= await guild.roles.create({ name: 'Rotation Leader', color: 0x57f287, reason: 'Rotation bot setup' });
 
     let category = current.ui.categoryId
       ? await guild.channels.fetch(current.ui.categoryId).catch(() => null)
       : null;
-    category ??= guild.channels.cache.find((channel) => channel.type === ChannelType.GuildCategory && channel.name === 'Rotations');
     category ??= await guild.channels.create({ name: 'Rotations', type: ChannelType.GuildCategory, reason: 'Rotation bot setup' });
 
     const botId = guild.members.me.id;
@@ -85,7 +110,21 @@ export function createRotationUi(store) {
     let joinMessage = await getMessage(joinChannel, current.ui.joinMessageId);
     joinMessage ??= await joinChannel.send({ embeds: [waitingEmbed(current)], components: joinComponents() });
     let groupingMessage = await getMessage(groupingChannel, current.ui.groupingMessageId);
-    groupingMessage ??= await groupingChannel.send({ embeds: [groupingPlaceholder()] });
+    const currentGroupEmbeds = groupEmbeds(current.lastGroups);
+    groupingMessage ??= await groupingChannel.send({
+      embeds: currentGroupEmbeds.length ? currentGroupEmbeds.slice(0, 10) : [groupingPlaceholder()],
+    });
+
+    await joinMessage.edit({ embeds: [waitingEmbed(current)], components: joinComponents() });
+    await groupingMessage.edit({
+      content: currentGroupEmbeds.length ? 'Latest rotation groups' : null,
+      embeds: currentGroupEmbeds.length ? currentGroupEmbeds.slice(0, 10) : [groupingPlaceholder()],
+    });
+    const groupMessageIds = await reconcileOverflowMessages(
+      groupingChannel,
+      current.ui.groupMessageIds ?? [],
+      currentGroupEmbeds,
+    );
 
     await store.update(guild.id, (state) => {
       state.ui = {
@@ -96,6 +135,7 @@ export function createRotationUi(store) {
         joinMessageId: joinMessage.id,
         groupingChannelId: groupingChannel.id,
         groupingMessageId: groupingMessage.id,
+        groupMessageIds,
         visibilityVersion: 2,
       };
     });
@@ -109,25 +149,11 @@ export function createRotationUi(store) {
 
   async function publishGroups(guild, groups) {
     const ui = await ensure(guild);
-    const previousOverflowIds = store.get(guild.id).ui.groupMessageIds ?? [];
-    await Promise.all(previousOverflowIds.map(async (messageId) => {
-      const message = await getMessage(ui.groupingChannel, messageId);
-      if (message) await message.delete();
-    }));
-    const embeds = groups.map((group, index) => new EmbedBuilder()
-      .setColor(0x57f287)
-      .setTitle(`Team ${index + 1}`)
-      .setDescription(`**Leader:** ${mention(group[0])}\n\n**Players**\n${group.length > 1 ? group.slice(1).map(mention).join('\n') : '_No players assigned_'}`));
+    const embeds = groupEmbeds(groups);
     await ui.groupingMessage.edit({
       content: `Groups generated <t:${Math.floor(Date.now() / 1000)}:R>`,
       embeds: embeds.slice(0, 10),
     });
-    const overflowIds = [];
-    for (let index = 10; index < embeds.length; index += 10) {
-      const message = await ui.groupingChannel.send({ embeds: embeds.slice(index, index + 10) });
-      overflowIds.push(message.id);
-    }
-    await store.update(guild.id, (state) => { state.ui.groupMessageIds = overflowIds; });
   }
 
   async function resetGroups(guild) {

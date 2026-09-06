@@ -1,7 +1,7 @@
 import { mkdir, readFile, rename, writeFile } from 'node:fs/promises';
 import { dirname } from 'node:path';
 
-const emptyGuild = () => ({ players: [], leaders: [], pairCounts: {}, rounds: 0, ui: {} });
+const emptyGuild = () => ({ players: [], leaders: [], lastGroups: [], pairCounts: {}, rounds: 0, ui: {} });
 
 export class RotationStore {
   #file;

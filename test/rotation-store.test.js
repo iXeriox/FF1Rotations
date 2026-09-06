@@ -10,11 +10,17 @@ test('persists isolated guild state', async () => {
   const file = join(directory, 'state.json');
   const store = new RotationStore(file);
   await store.load();
-  await store.update('guild-a', (state) => state.players.push('player'));
+  await store.update('guild-a', (state) => {
+    state.players.push('player');
+    state.lastGroups = [['leader', 'player']];
+    state.ui = { categoryId: 'category', joinChannelId: 'join-channel' };
+  });
 
   const reloaded = new RotationStore(file);
   await reloaded.load();
   assert.deepEqual(reloaded.get('guild-a').players, ['player']);
+  assert.deepEqual(reloaded.get('guild-a').lastGroups, [['leader', 'player']]);
+  assert.equal(reloaded.get('guild-a').ui.categoryId, 'category');
   assert.deepEqual(reloaded.get('guild-b').players, []);
   const contents = await readFile(file, 'utf8');
   assert.doesNotThrow(() => JSON.parse(contents));

@@ -17,6 +17,7 @@ export default {
       state.players = [];
       state.leaders = [];
       state.lastGroups = [];
+      state.commendationsBy = [];
       if (history) {
         state.pairCounts = {};
         state.rounds = 0;

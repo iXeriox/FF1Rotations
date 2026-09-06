@@ -9,10 +9,12 @@ A small, modular Discord.js bot for organising event rotations. Players opt in, 
 | `/join` | Everyone | Join the player queue. |
 | `/leave` | Everyone | Leave the player queue. |
 | `/rotation` | Everyone | View leaders, players, and recorded rounds. |
-| `/addleader member` | Admin | Give a member the persistent Rotation Leader role. |
-| `/removeleader member` | Admin | Remove a member's Rotation Leader role. |
-| `/group` | Admin | Generate groups, publish them, and clear the signup list. |
-| `/reset [history]` | Admin | Clear signups, optionally also clearing match history. |
+| `/addleader member` | Manage Server | Give a member the persistent Rotation Leader role. |
+| `/removeleader member` | Manage Server | Remove a member's Rotation Leader role. |
+| `/group` | Manage Server | Generate groups, publish them, and clear the signup list. |
+| `/reset [history]` | Manage Server | Clear signups, optionally also clearing match history. |
+| `/commend user` | Everyone | Give one commendation to a teammate from the latest rotation. |
+| `/stats user` | Everyone | Show commendations, rotation count, and last rotation time. |
 
 On startup, the bot automatically creates a **Rotation Leader** role and a **Rotations** category containing:
 
@@ -22,6 +24,8 @@ On startup, the bot automatically creates a **Rotation Leader** role and a **Rot
 The IDs of the generated role, category, channels, and messages are persisted. On restart the bot restores those exact resources, moves its channels back under the Rotations category if necessary, and refreshes both embeds from stored state. It never adopts or overwrites unrelated channels merely because they have the same name; if a managed resource is deleted, the bot creates a replacement.
 
 Leaders are included automatically and never need to join the player queue. After `/group`, all player signups and leaders are cleared and leader roles are removed, ready for the next rotation. Only the immediately previous game's teammate pairings are retained, so the next grouping avoids repeats where possible without permanently penalising older matches. `/reset history:true` can also forget that last game.
+
+Each participant may use `/commend` once after a rotation, and the recipient must have been on that participant's latest team. Commendations and participation statistics are retained across rotations and bot restarts.
 
 ## Setup
 

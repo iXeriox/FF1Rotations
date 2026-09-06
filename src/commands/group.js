@@ -1,5 +1,6 @@
 import { SlashCommandBuilder } from 'discord.js';
 import { createGroups, createPairHistory } from '../services/grouping.js';
+import { recordRotation } from '../services/rotation-stats.js';
 import { guildOnly, mention, requireAdmin } from './helpers.js';
 
 export default {
@@ -20,10 +21,9 @@ export default {
     await rotationUi.clearLeaderRoles(interaction.guild, state.leaders);
     await store.update(interaction.guildId, (latest) => {
       latest.pairCounts = createPairHistory(groups);
-      latest.lastGroups = groups;
       latest.players = [];
       latest.leaders = [];
-      latest.rounds += 1;
+      recordRotation(latest, groups);
     });
     await rotationUi.publishGroups(interaction.guild, groups);
     await rotationUi.refreshWaiting(interaction.guild);

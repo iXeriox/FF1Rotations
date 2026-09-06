@@ -23,6 +23,7 @@ export default {
       latest.pairCounts = createPairHistory(groups);
       latest.players = [];
       latest.leaders = [];
+      latest.waitingOpen = false;
       recordRotation(latest, groups);
     });
     await rotationUi.publishGroups(interaction.guild, groups);

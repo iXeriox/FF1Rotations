@@ -16,6 +16,7 @@ export default {
     await store.update(interaction.guildId, (state) => {
       state.players = [];
       state.leaders = [];
+      state.waitingOpen = false;
       state.lastGroups = [];
       state.commendationsBy = [];
       if (history) {

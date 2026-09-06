@@ -4,6 +4,7 @@ import { dirname } from 'node:path';
 const emptyGuild = () => ({
   players: [],
   leaders: [],
+  waitingOpen: false,
   lastGroups: [],
   commendationsBy: [],
   userStats: {},

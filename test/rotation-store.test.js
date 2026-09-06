@@ -12,6 +12,7 @@ test('persists isolated guild state', async () => {
   await store.load();
   await store.update('guild-a', (state) => {
     state.players.push('player');
+    state.waitingOpen = true;
     state.lastGroups = [['leader', 'player']];
     state.ui = { categoryId: 'category', joinChannelId: 'join-channel' };
   });
@@ -19,6 +20,7 @@ test('persists isolated guild state', async () => {
   const reloaded = new RotationStore(file);
   await reloaded.load();
   assert.deepEqual(reloaded.get('guild-a').players, ['player']);
+  assert.equal(reloaded.get('guild-a').waitingOpen, true);
   assert.deepEqual(reloaded.get('guild-a').lastGroups, [['leader', 'player']]);
   assert.equal(reloaded.get('guild-a').ui.categoryId, 'category');
   assert.deepEqual(reloaded.get('guild-b').players, []);

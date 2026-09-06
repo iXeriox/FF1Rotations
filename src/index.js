@@ -4,6 +4,7 @@ import { getConfig } from './config.js';
 import { RotationStore } from './store/rotation-store.js';
 import { createRotationUi, JOIN_BUTTON_ID } from './ui/rotation-space.js';
 import { syncCommands } from './services/command-sync.js';
+import { joinWaitingList } from './services/waiting-list.js';
 
 const config = getConfig();
 const store = new RotationStore(config.dataFile);
@@ -40,21 +41,21 @@ client.on(Events.InteractionCreate, (interaction) => {
 async function handleInteraction(interaction) {
   if (interaction.isButton() && interaction.customId === JOIN_BUTTON_ID) {
     const state = store.get(interaction.guildId);
+    if (!state.waitingOpen) {
+      await interaction.reply({ content: 'The rotation waiting list is currently closed.', ephemeral: true });
+      return;
+    }
     const leaderRoleId = state.ui.leaderRoleId;
     if (leaderRoleId && interaction.member.roles.cache.has(leaderRoleId)) {
       await interaction.reply({ content: 'You are a Rotation Leader, so you are already included automatically.', ephemeral: true });
       return;
     }
-    const added = await store.update(interaction.guildId, (latest) => {
-      if (latest.players.includes(interaction.user.id)) return false;
-      latest.players.push(interaction.user.id);
-      return true;
-    });
+    const result = await store.update(interaction.guildId, (latest) => joinWaitingList(latest, interaction.user.id));
     await interaction.reply({
-      content: added ? 'You joined the rotation waiting list!' : 'You are already in the rotation waiting list.',
+      content: result.message,
       ephemeral: true,
     });
-    if (added) await rotationUi.refreshWaiting(interaction.guild);
+    if (result.ok) await rotationUi.refreshWaiting(interaction.guild);
     return;
   }
   if (!interaction.isChatInputCommand()) return;

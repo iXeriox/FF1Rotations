@@ -11,14 +11,17 @@ import { mention } from '../commands/helpers.js';
 export const JOIN_BUTTON_ID = 'rotation:join';
 
 const waitingEmbed = (state) => new EmbedBuilder()
-  .setColor(0x5865f2)
-  .setTitle('Join the next rotation')
-  .setDescription('Press **Join rotation** below to enter the waiting list. Leaders are included automatically and do not need to join.')
+  .setColor(state.waitingOpen ? 0x57f287 : 0xed4245)
+  .setTitle(`Rotation waiting list — ${state.waitingOpen ? 'OPEN' : 'CLOSED'}`)
+  .setDescription(state.waitingOpen
+    ? 'Press **Join rotation** below to enter the waiting list. Leaders are included automatically and do not need to join.'
+    : 'Signups are not currently running. An administrator will open the waiting list before the next rotation.')
   .addFields({ name: 'Waiting', value: `${state.players.length} player${state.players.length === 1 ? '' : 's'}`, inline: true })
   .setFooter({ text: 'You will receive a private confirmation when you join.' });
 
-const joinComponents = () => [new ActionRowBuilder().addComponents(
-  new ButtonBuilder().setCustomId(JOIN_BUTTON_ID).setLabel('Join rotation').setEmoji('✅').setStyle(ButtonStyle.Success),
+const joinComponents = (waitingOpen) => [new ActionRowBuilder().addComponents(
+  new ButtonBuilder().setCustomId(JOIN_BUTTON_ID).setLabel(waitingOpen ? 'Join rotation' : 'Waiting list closed')
+    .setEmoji(waitingOpen ? '✅' : '🔒').setStyle(ButtonStyle.Success).setDisabled(!waitingOpen),
 )];
 
 const groupingPlaceholder = () => new EmbedBuilder()
@@ -108,14 +111,14 @@ export function createRotationUi(store) {
     }
 
     let joinMessage = await getMessage(joinChannel, current.ui.joinMessageId);
-    joinMessage ??= await joinChannel.send({ embeds: [waitingEmbed(current)], components: joinComponents() });
+    joinMessage ??= await joinChannel.send({ embeds: [waitingEmbed(current)], components: joinComponents(current.waitingOpen) });
     let groupingMessage = await getMessage(groupingChannel, current.ui.groupingMessageId);
     const currentGroupEmbeds = groupEmbeds(current.lastGroups);
     groupingMessage ??= await groupingChannel.send({
       embeds: currentGroupEmbeds.length ? currentGroupEmbeds.slice(0, 10) : [groupingPlaceholder()],
     });
 
-    await joinMessage.edit({ embeds: [waitingEmbed(current)], components: joinComponents() });
+    await joinMessage.edit({ embeds: [waitingEmbed(current)], components: joinComponents(current.waitingOpen) });
     await groupingMessage.edit({
       content: currentGroupEmbeds.length ? 'Latest rotation groups' : null,
       embeds: currentGroupEmbeds.length ? currentGroupEmbeds.slice(0, 10) : [groupingPlaceholder()],
@@ -144,7 +147,8 @@ export function createRotationUi(store) {
 
   async function refreshWaiting(guild) {
     const ui = await ensure(guild);
-    await ui.joinMessage.edit({ embeds: [waitingEmbed(store.get(guild.id))], components: joinComponents() });
+    const state = store.get(guild.id);
+    await ui.joinMessage.edit({ embeds: [waitingEmbed(state)], components: joinComponents(state.waitingOpen) });
   }
 
   async function publishGroups(guild, groups) {

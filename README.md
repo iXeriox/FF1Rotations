@@ -8,11 +8,13 @@ A small, modular Discord.js bot for organising event rotations. Players opt in, 
 | --- | --- | --- |
 | `/join` | Everyone | Join the player queue. |
 | `/leave` | Everyone | Leave the player queue. |
+| `/open` | Manage Server | Open the waiting list and enable its join button. |
+| `/close` | Manage Server | Close the waiting list and disable new signups. |
 | `/rotation` | Everyone | View leaders, players, and recorded rounds. |
-| `/addleader member` | Admin | Give a member the persistent Rotation Leader role. |
-| `/removeleader member` | Admin | Remove a member's Rotation Leader role. |
-| `/group` | Admin | Generate groups, publish them, and clear the signup list. |
-| `/reset [history]` | Admin | Clear signups, optionally also clearing match history. |
+| `/addleader member` | Manage Server | Give a member the persistent Rotation Leader role. |
+| `/removeleader member` | Manage Server | Remove a member's Rotation Leader role. |
+| `/group` | Manage Server | Generate groups, publish them, and clear the signup list. |
+| `/reset [history]` | Manage Server | Clear signups, optionally also clearing match history. |
 | `/commend user` | Everyone | Give one commendation to a teammate from the latest rotation. |
 | `/stats user` | Everyone | Show commendations, rotation count, and last rotation time. |
 
@@ -28,6 +30,8 @@ Leaders are included automatically and never need to join the player queue. Afte
 Every generated Call of Duty team is capped at four members, including its leader. Each leader therefore supports up to three waiting players. If there are not enough leaders, `/group` explains how many are required and leaves the current signup list untouched.
 
 Each participant may use `/commend` once after a rotation, and the recipient must have been on that participant's latest team. Commendations and participation statistics are retained across rotations and bot restarts.
+
+Waiting lists start closed. An administrator must run `/open` before players can join through either the button or `/join`. `/close` prevents new signups without removing anyone already waiting; players can still use `/leave`. Completing `/group` or using `/reset` closes the list automatically.
 
 ## Setup
 

@@ -3,13 +3,14 @@ import { guildOnly, mention } from './helpers.js';
 
 export default {
   data: new SlashCommandBuilder().setName('join').setDescription('Join the next rotation.'),
-  async execute(interaction, { store }) {
+  async execute(interaction, { store, rotationUi }) {
     if (!guildOnly(interaction)) return;
     const added = await store.update(interaction.guildId, (state) => {
       if (state.players.includes(interaction.user.id) || state.leaders.includes(interaction.user.id)) return false;
       state.players.push(interaction.user.id);
       return true;
     });
+    if (added) await rotationUi.refreshWaiting(interaction.guild);
     await interaction.reply(added
       ? `${mention(interaction.user.id)} joined the rotation.`
       : { content: 'You are already in the rotation.', ephemeral: true });

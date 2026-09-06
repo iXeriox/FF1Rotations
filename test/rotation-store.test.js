@@ -19,3 +19,17 @@ test('persists isolated guild state', async () => {
   const contents = await readFile(file, 'utf8');
   assert.doesNotThrow(() => JSON.parse(contents));
 });
+
+test('serializes concurrent updates without losing players', async () => {
+  const directory = await mkdtemp(join(tmpdir(), 'rotations-'));
+  const store = new RotationStore(join(directory, 'state.json'));
+  await store.load();
+
+  await Promise.all(Array.from({ length: 20 }, (_, index) => store.update('guild', async (state) => {
+    await new Promise((resolve) => setTimeout(resolve, index % 3));
+    state.players.push(`player-${index}`);
+  })));
+
+  assert.equal(store.get('guild').players.length, 20);
+  assert.deepEqual(store.get('guild').ui, {});
+});

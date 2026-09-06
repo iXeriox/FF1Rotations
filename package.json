@@ -9,7 +9,7 @@
     "start": "node src/index.js",
     "deploy": "node src/deploy-commands.js",
     "test": "node --test",
-    "check": "node --check src/index.js && node --check src/deploy-commands.js"
+    "check": "find src test -name '*.js' -print0 | xargs -0 -n1 node --check"
   },
   "engines": {
     "node": ">=20"

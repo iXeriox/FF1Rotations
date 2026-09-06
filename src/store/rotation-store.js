@@ -1,12 +1,13 @@
 import { mkdir, readFile, rename, writeFile } from 'node:fs/promises';
 import { dirname } from 'node:path';
 
-const emptyGuild = () => ({ players: [], leaders: [], pairCounts: {}, rounds: 0 });
+const emptyGuild = () => ({ players: [], leaders: [], pairCounts: {}, rounds: 0, ui: {} });
 
 export class RotationStore {
   #file;
   #data = { guilds: {} };
   #writeQueue = Promise.resolve();
+  #mutationQueue = Promise.resolve();
 
   constructor(file) {
     this.#file = file;
@@ -21,15 +22,19 @@ export class RotationStore {
   }
 
   get(guildId) {
-    return structuredClone(this.#data.guilds[guildId] ?? emptyGuild());
+    return structuredClone({ ...emptyGuild(), ...this.#data.guilds[guildId] });
   }
 
-  async update(guildId, updater) {
-    const state = this.get(guildId);
-    const result = await updater(state);
-    this.#data.guilds[guildId] = state;
-    await this.#save();
-    return result;
+  update(guildId, updater) {
+    const mutation = async () => {
+      const state = this.get(guildId);
+      const result = await updater(state);
+      this.#data.guilds[guildId] = state;
+      await this.#save();
+      return result;
+    };
+    this.#mutationQueue = this.#mutationQueue.then(mutation, mutation);
+    return this.#mutationQueue;
   }
 
   async #save() {

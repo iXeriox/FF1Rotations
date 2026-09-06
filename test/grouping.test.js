@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { createGroups, recordGroups } from '../src/services/grouping.js';
+import { createGroups, createPairHistory, recordGroups } from '../src/services/grouping.js';
 
 test('creates balanced groups headed by leaders', () => {
   const groups = createGroups(['p1', 'p2', 'p3', 'p4', 'p5'], ['l1', 'l2'], {}, () => 0.5);
@@ -24,4 +24,12 @@ test('records every pair in a completed group', () => {
 
 test('requires at least one leader', () => {
   assert.throws(() => createGroups(['p1'], [], {}), /at least one leader/i);
+});
+
+test('creates a fresh history containing only the latest game', () => {
+  const previousHistory = { 'old-a:old-b': 7 };
+  const latestHistory = createPairHistory([['leader', 'player']]);
+
+  assert.deepEqual(previousHistory, { 'old-a:old-b': 7 });
+  assert.deepEqual(latestHistory, { 'leader:player': 1 });
 });

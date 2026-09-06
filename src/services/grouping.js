@@ -42,3 +42,10 @@ export function recordGroups(groups, pairCounts) {
     }
   }
 }
+
+/** Build a fresh history snapshot containing only one completed game. */
+export function createPairHistory(groups) {
+  const pairCounts = {};
+  recordGroups(groups, pairCounts);
+  return pairCounts;
+}

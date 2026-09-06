@@ -3,6 +3,7 @@ import { commands } from './commands/index.js';
 import { getConfig } from './config.js';
 import { RotationStore } from './store/rotation-store.js';
 import { createRotationUi, JOIN_BUTTON_ID } from './ui/rotation-space.js';
+import { syncCommands } from './services/command-sync.js';
 
 const config = getConfig();
 const store = new RotationStore(config.dataFile);
@@ -14,6 +15,11 @@ const client = new Client({ intents: [GatewayIntentBits.Guilds] });
 
 client.once(Events.ClientReady, async (readyClient) => {
   console.log(`Ready as ${readyClient.user.tag}.`);
+  try {
+    console.log(await syncCommands(readyClient, commands, config.guildId));
+  } catch (error) {
+    console.error('Could not register slash commands:', error);
+  }
   for (const guild of readyClient.guilds.cache.values()) {
     await rotationUi.ensure(guild).catch((error) => console.error(`Could not set up ${guild.name}:`, error));
   }
@@ -25,7 +31,8 @@ client.on(Events.InteractionCreate, (interaction) => {
   void handleInteraction(interaction).catch(async (error) => {
     console.error(error);
     const response = { content: 'Something went wrong while running that command.', ephemeral: true };
-    if (interaction.replied || interaction.deferred) await interaction.followUp(response).catch(console.error);
+    if (interaction.deferred) await interaction.editReply(response).catch(console.error);
+    else if (interaction.replied) await interaction.followUp(response).catch(console.error);
     else await interaction.reply(response).catch(console.error);
   });
 });

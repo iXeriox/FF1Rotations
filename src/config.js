@@ -1,7 +1,8 @@
 import 'dotenv/config';
 
-export function getConfig() {
-  const required = ['DISCORD_TOKEN', 'DISCORD_CLIENT_ID'];
+export function getConfig({ requireClientId = false } = {}) {
+  const required = ['DISCORD_TOKEN'];
+  if (requireClientId) required.push('DISCORD_CLIENT_ID');
   const missing = required.filter((key) => !process.env[key]);
 
   if (missing.length) {

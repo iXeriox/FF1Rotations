@@ -9,10 +9,10 @@ A small, modular Discord.js bot for organising event rotations. Players opt in, 
 | `/join` | Everyone | Join the player queue. |
 | `/leave` | Everyone | Leave the player queue. |
 | `/rotation` | Everyone | View leaders, players, and recorded rounds. |
-| `/addleader member` | Manager | Give a member the persistent Rotation Leader role. |
-| `/removeleader member` | Manager | Remove a member's Rotation Leader role. |
-| `/group` | Manager | Generate groups, publish them, and clear the signup list. |
-| `/reset [history]` | Manager | Clear signups, optionally also clearing match history. |
+| `/addleader member` | Manage Server | Give a member the persistent Rotation Leader role. |
+| `/removeleader member` | Manage Server | Remove a member's Rotation Leader role. |
+| `/group` | Manage Server | Generate groups, publish them, and clear the signup list. |
+| `/reset [history]` | Manage Server | Clear signups, optionally also clearing match history. |
 
 On startup, the bot automatically creates a **Rotation Leader** role and a **Rotations** category containing:
 
@@ -25,10 +25,11 @@ Leaders are included automatically and never need to join the player queue. Afte
 
 1. Install Node.js 20 or newer and run `npm install`.
 2. Create an application and bot in the Discord Developer Portal.
-3. Copy `.env.example` to `.env`, then add the bot token and application/client ID. Set `DISCORD_GUILD_ID` during development for immediate guild command deployment.
+3. Copy `.env.example` to `.env`, then add the bot token. The application/client ID is only required by the manual `npm run deploy` command. Set `DISCORD_GUILD_ID` during development for immediate guild command registration.
 4. Invite the bot with the `bot` and `applications.commands` scopes. Grant it **Manage Channels**, **Manage Roles**, **View Channels**, **Send Messages**, and **Read Message History**. Keep the bot's role above the generated Rotation Leader role.
-5. Run `npm run deploy` once to register the slash commands.
-6. Run `npm start`.
+5. Run `npm start`. The bot automatically registers or updates all slash commands whenever it connects.
+
+When `DISCORD_GUILD_ID` is set, commands are registered directly in that server and appear immediately. Without it, Discord registers them globally, which can take longer to become visible in every server. `npm run deploy` remains available for manual deployment if needed.
 
 The default JSON data file is `data/rotations.json`. Set `DATA_FILE` to use another persistent location. Keep that file on a durable volume in production.
 

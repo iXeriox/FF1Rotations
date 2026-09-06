@@ -9,10 +9,10 @@ A small, modular Discord.js bot for organising event rotations. Players opt in, 
 | `/join` | Everyone | Join the player queue. |
 | `/leave` | Everyone | Leave the player queue. |
 | `/rotation` | Everyone | View leaders, players, and recorded rounds. |
-| `/addleader member` | Manage Server | Give a member the persistent Rotation Leader role. |
-| `/removeleader member` | Manage Server | Remove a member's Rotation Leader role. |
-| `/group` | Manage Server | Generate groups, publish them, and clear the signup list. |
-| `/reset [history]` | Manage Server | Clear signups, optionally also clearing match history. |
+| `/addleader member` | Manager | Give a member the persistent Rotation Leader role. |
+| `/removeleader member` | Manager | Remove a member's Rotation Leader role. |
+| `/group` | Manager | Generate groups, publish them, and clear the signup list. |
+| `/reset [history]` | Manager | Clear signups, optionally also clearing match history. |
 
 On startup, the bot automatically creates a **Rotation Leader** role and a **Rotations** category containing:
 

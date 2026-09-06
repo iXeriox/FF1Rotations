@@ -9,6 +9,7 @@ export default {
     const removed = await store.update(interaction.guildId, (state) => {
       const before = state.players.length;
       state.players = state.players.filter((id) => id !== interaction.user.id);
+      if (state.playerQueuedAt) delete state.playerQueuedAt[interaction.user.id];
       return before !== state.players.length;
     });
     if (removed) await rotationUi.refreshWaiting(interaction.guild);

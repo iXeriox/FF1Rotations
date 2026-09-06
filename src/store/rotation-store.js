@@ -3,6 +3,7 @@ import { dirname } from 'node:path';
 
 const emptyGuild = () => ({
   players: [],
+  playerQueuedAt: {},
   leaders: [],
   waitingOpen: false,
   lastGroups: [],

@@ -16,6 +16,7 @@ export default {
     await store.update(interaction.guildId, (state) => {
       if (!state.leaders.includes(user.id)) state.leaders.push(user.id);
       state.players = state.players.filter((id) => id !== user.id);
+      if (state.playerQueuedAt) delete state.playerQueuedAt[user.id];
     });
     await rotationUi.refreshWaiting(interaction.guild);
     await interaction.editReply(`${mention(user.id)} is now a Rotation Leader and will be included automatically.`);

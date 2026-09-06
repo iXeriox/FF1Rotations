@@ -20,7 +20,7 @@ A small, modular Discord.js bot for organising event rotations. Players opt in, 
 
 On startup, the bot automatically creates a **Rotation Leader** role and a **Rotations** category containing:
 
-- **#join-rotation** — visible to everyone but read-only, with an embed and button for joining the waiting list. Button confirmations are private.
+- **#join-rotation** — visible to everyone but read-only, with an embed and button for joining the waiting list. The embed lists queued players in order with Discord-relative wait times, while button confirmations are private.
 - **#grouping** — visible to everyone but read-only. Its placeholder embed is replaced with one team embed per leader after `/group`.
 
 The IDs of the generated role, category, channels, and messages are persisted. On restart the bot restores those exact resources, moves its channels back under the Rotations category if necessary, and refreshes both embeds from stored state. It never adopts or overwrites unrelated channels merely because they have the same name; if a managed resource is deleted, the bot creates a replacement.

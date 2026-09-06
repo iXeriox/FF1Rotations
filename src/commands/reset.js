@@ -15,6 +15,7 @@ export default {
     await rotationUi.clearLeaderRoles(interaction.guild, current.leaders);
     await store.update(interaction.guildId, (state) => {
       state.players = [];
+      state.playerQueuedAt = {};
       state.leaders = [];
       state.waitingOpen = false;
       state.lastGroups = [];

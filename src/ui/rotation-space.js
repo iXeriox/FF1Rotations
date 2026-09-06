@@ -10,14 +10,37 @@ import { mention } from '../commands/helpers.js';
 
 export const JOIN_BUTTON_ID = 'rotation:join';
 
+function waitingFields(state) {
+  if (!state.players.length) return [{ name: 'Waiting (0)', value: '_Nobody is waiting yet._' }];
+  const fields = [];
+  let value = '';
+  let displayed = 0;
+  for (const [index, userId] of state.players.entries()) {
+    const queuedAt = state.playerQueuedAt?.[userId];
+    const line = `${index + 1}. ${mention(userId)} • ${queuedAt ? `<t:${queuedAt}:R>` : '_time unavailable_'}\n`;
+    if (value.length + line.length > 900) {
+      fields.push({ name: fields.length ? 'Waiting — continued' : `Waiting (${state.players.length})`, value });
+      value = '';
+    }
+    if (fields.length === 5) break;
+    value += line;
+    displayed += 1;
+  }
+  if (value) fields.push({ name: fields.length ? 'Waiting — continued' : `Waiting (${state.players.length})`, value });
+  if (displayed < state.players.length) {
+    fields.push({ name: 'More players', value: `...and ${state.players.length - displayed} more waiting.` });
+  }
+  return fields;
+}
+
 const waitingEmbed = (state) => new EmbedBuilder()
   .setColor(state.waitingOpen ? 0x57f287 : 0xed4245)
   .setTitle(`Rotation waiting list — ${state.waitingOpen ? 'OPEN' : 'CLOSED'}`)
   .setDescription(state.waitingOpen
     ? 'Press **Join rotation** below to enter the waiting list. Leaders are included automatically and do not need to join.'
     : 'Signups are not currently running. An administrator will open the waiting list before the next rotation.')
-  .addFields({ name: 'Waiting', value: `${state.players.length} player${state.players.length === 1 ? '' : 's'}`, inline: true })
-  .setFooter({ text: 'You will receive a private confirmation when you join.' });
+  .addFields(waitingFields(state))
+  .setFooter({ text: `${state.players.length} waiting • Times update automatically when the list changes` });
 
 const joinComponents = (waitingOpen) => [new ActionRowBuilder().addComponents(
   new ButtonBuilder().setCustomId(JOIN_BUTTON_ID).setLabel(waitingOpen ? 'Join rotation' : 'Waiting list closed')

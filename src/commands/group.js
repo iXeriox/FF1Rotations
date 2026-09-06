@@ -22,6 +22,7 @@ export default {
     await store.update(interaction.guildId, (latest) => {
       latest.pairCounts = createPairHistory(groups);
       latest.players = [];
+      latest.playerQueuedAt = {};
       latest.leaders = [];
       latest.waitingOpen = false;
       recordRotation(latest, groups);

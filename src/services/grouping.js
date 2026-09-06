@@ -2,6 +2,8 @@ function pairKey(a, b) {
   return [a, b].sort().join(':');
 }
 
+export const MAX_TEAM_SIZE = 4;
+
 function repeatCost(groups, playerId, pairCounts) {
   return groups.reduce(
     (total, member) => total + (pairCounts[pairKey(member, playerId)] ?? 0),
@@ -13,8 +15,17 @@ function repeatCost(groups, playerId, pairCounts) {
 export function createGroups(players, leaders, pairCounts, random = Math.random) {
   if (!leaders.length) throw new Error('Add at least one leader before creating groups.');
 
-  const shuffled = players
-    .filter((id) => !leaders.includes(id))
+  const eligiblePlayers = players.filter((id) => !leaders.includes(id));
+  const playerCapacity = leaders.length * (MAX_TEAM_SIZE - 1);
+  if (eligiblePlayers.length > playerCapacity) {
+    const leadersNeeded = Math.ceil(eligiblePlayers.length / (MAX_TEAM_SIZE - 1));
+    throw new Error(
+      `There are too many players for ${leaders.length} leader${leaders.length === 1 ? '' : 's'}. `
+      + `Call of Duty teams are limited to ${MAX_TEAM_SIZE}; add at least ${leadersNeeded} leaders.`,
+    );
+  }
+
+  const shuffled = eligiblePlayers
     .map((id) => ({ id, tieBreaker: random() }))
     .sort((a, b) => a.tieBreaker - b.tieBreaker)
     .map(({ id }) => id);

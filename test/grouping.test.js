@@ -26,6 +26,18 @@ test('requires at least one leader', () => {
   assert.throws(() => createGroups(['p1'], [], {}), /at least one leader/i);
 });
 
+test('caps every Call of Duty team at four members including its leader', () => {
+  const groups = createGroups(['p1', 'p2', 'p3', 'p4', 'p5', 'p6'], ['l1', 'l2'], {}, () => 0.5);
+  assert.deepEqual(groups.map((group) => group.length), [4, 4]);
+});
+
+test('rejects grouping when there are not enough leaders for four-player teams', () => {
+  assert.throws(
+    () => createGroups(['p1', 'p2', 'p3', 'p4'], ['leader'], {}),
+    /limited to 4; add at least 2 leaders/i,
+  );
+});
+
 test('creates a fresh history containing only the latest game', () => {
   const previousHistory = { 'old-a:old-b': 7 };
   const latestHistory = createPairHistory([['leader', 'player']]);

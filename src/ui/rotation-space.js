@@ -61,7 +61,7 @@ const groupingPlaceholder = () => new EmbedBuilder()
 
 const squadIcons = ['1️⃣', '2️⃣', '3️⃣'];
 
-export const groupEmbeds = (groups, displayNames) => groups.map((group, index) => {
+export const groupEmbeds = (groups, displayNames, lobbyCodes = {}) => groups.map((group, index) => {
   const leader = displayNames.get(group[0]) ?? 'Unknown member';
   const players = group.slice(1);
   return new EmbedBuilder()
@@ -75,6 +75,10 @@ export const groupEmbeds = (groups, displayNames) => groups.map((group, index) =
         value: players.length
           ? players.map((userId, playerIndex) => `${squadIcons[playerIndex] ?? '•'}  **${displayNames.get(userId) ?? 'Unknown member'}**`).join('\n')
           : '_No additional players assigned._',
+      },
+      {
+        name: '🔑  LOBBY CODE',
+        value: lobbyCodes[group[0]] ? `**${escapeMarkdown(lobbyCodes[group[0]])}**` : '_Waiting for the leader to add a code._',
       },
     )
     .setFooter({ text: `${group.length} / 4 members  •  Squad ${index + 1} of ${groups.length}` });
@@ -169,7 +173,7 @@ export function createRotationUi(store) {
     const displayNames = await resolveDisplayNames(guild, [...current.players, ...current.lastGroups.flat()]);
     joinMessage ??= await joinChannel.send({ embeds: [waitingEmbed(guild, current, displayNames)], components: joinComponents(current.waitingOpen) });
     let groupingMessage = await getMessage(groupingChannel, current.ui.groupingMessageId);
-    const currentGroupEmbeds = groupEmbeds(current.lastGroups, displayNames);
+    const currentGroupEmbeds = groupEmbeds(current.lastGroups, displayNames, current.lobbyCodes);
     groupingMessage ??= await groupingChannel.send({
       embeds: currentGroupEmbeds.length ? currentGroupEmbeds.slice(0, 10) : [groupingPlaceholder()],
     });
@@ -211,7 +215,8 @@ export function createRotationUi(store) {
   async function publishGroups(guild, groups) {
     const ui = await ensure(guild);
     const displayNames = await resolveDisplayNames(guild, groups.flat());
-    const embeds = groupEmbeds(groups, displayNames);
+    const state = store.get(guild.id);
+    const embeds = groupEmbeds(groups, displayNames, state.lobbyCodes);
     await ui.groupingMessage.edit({
       content: `Groups generated <t:${Math.floor(Date.now() / 1000)}:R>`,
       embeds: embeds.slice(0, 10),
@@ -229,6 +234,10 @@ export function createRotationUi(store) {
     await store.update(guild.id, (state) => { state.ui.groupMessageIds = []; });
   }
 
+  async function refreshGroups(guild) {
+    await ensure(guild);
+  }
+
   async function clearLeaderRoles(guild, leaderIds) {
     const { leaderRole } = await ensure(guild);
     await Promise.all(leaderIds.map(async (memberId) => {
@@ -239,5 +248,5 @@ export function createRotationUi(store) {
     }));
   }
 
-  return { ensure, publishGroups, refreshWaiting, resetGroups, clearLeaderRoles };
+  return { ensure, publishGroups, refreshWaiting, refreshGroups, resetGroups, clearLeaderRoles };
 }

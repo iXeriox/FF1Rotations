@@ -19,6 +19,7 @@ A small, modular Discord.js bot for organising event rotations. Players opt in, 
 | `/commend user` | Everyone | Give one commendation to a teammate from the latest rotation. |
 | `/stats user` | Everyone | Show commendations, rotation count, and last rotation time. |
 | `/id id` | Everyone | Add or update your Call of Duty ID for `/stats`. |
+| `/lobby code` | Latest team leaders | Add or update the lobby code on your squad card. |
 | `/birthday add day month year` | Everyone | Add or update your birthday reminder. |
 | `/birthday remove` | Everyone | Delete your saved birthday. |
 | `/birthday help` | Everyone | Explain the birthday commands. |
@@ -42,9 +43,11 @@ Leaders are included automatically and never need to join the player queue. Afte
 
 Every generated Call of Duty team is capped at four members, including its leader. Each leader therefore supports up to three waiting players. If there are not enough leaders, `/group` explains how many are required and leaves the current signup list untouched.
 
+After grouping, each leader can run `/lobby code` to add or replace their squad's lobby code. Authorization comes from the saved latest grouping, so it continues to work after temporary Rotation Leader roles are cleared. The public grouping card refreshes immediately, and lobby codes reset when the next rotation is generated or `/reset` is used.
+
 Each participant may use `/commend` once after a rotation, and the recipient must have been on that participant's latest team. Commendations and participation statistics are retained across rotations and bot restarts.
 
-Use `/id id:iXeriox#6447986` to save a Call of Duty ID. Whitespace is removed automatically, and the ID is displayed whenever another member selects that Discord user with `/stats`.
+Use `/id id:iXeriox#6447986` to save a Call of Duty ID. IDs containing spaces, such as `northeast slayer#2323548`, are supported; surrounding whitespace is trimmed and repeated spaces are cleaned up without joining separate words. The ID is displayed whenever another member selects that Discord user with `/stats`.
 
 Every successful `/id` update also posts a professional announcement mentioning the member in channel `1530580498265538600`. Set `ACTIVISION_IDS_CHANNEL_ID` to use a different channel; if that channel is unavailable, the ID is still saved and the member receives a warning.
 

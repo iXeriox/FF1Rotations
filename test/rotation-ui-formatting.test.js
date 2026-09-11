@@ -16,11 +16,12 @@ test('queue embed uses display names and relative signup times without raw menti
   assert.doesNotMatch(embed.fields[0].value, /<@/);
 });
 
-test('group cards show mobile-safe names, leader, roster, and capacity', () => {
-  const embed = groupEmbeds([['leader-id', 'player-id']], names)[0].toJSON();
+test('group cards show mobile-safe names, leader, roster, lobby code, and capacity', () => {
+  const embed = groupEmbeds([['leader-id', 'player-id']], names, { 'leader-id': 'ABC 123' })[0].toJSON();
   assert.equal(embed.title, 'SQUAD 01');
   assert.match(embed.fields[0].value, /Leader Name/);
   assert.match(embed.fields[1].value, /Player Name/);
+  assert.match(embed.fields[2].value, /ABC 123/);
   assert.equal(embed.footer.text, '2 / 4 members  •  Squad 1 of 1');
   assert.doesNotMatch(JSON.stringify(embed), /<@/);
 });

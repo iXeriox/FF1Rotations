@@ -17,6 +17,10 @@ A small, modular Discord.js bot for organising event rotations. Players opt in, 
 | `/reset [history]` | Manage Server | Clear signups, optionally also clearing match history. |
 | `/commend user` | Everyone | Give one commendation to a teammate from the latest rotation. |
 | `/stats user` | Everyone | Show commendations, rotation count, and last rotation time. |
+| `/birthday add day month year` | Everyone | Add or update your birthday reminder. |
+| `/birthday remove` | Everyone | Delete your saved birthday. |
+| `/birthday help` | Everyone | Explain the birthday commands. |
+| `/birthdays` | Everyone | Show upcoming birthdays without exposing birth years. |
 
 On startup, the bot automatically creates a **Rotation Leader** role and a **Rotations** category containing:
 
@@ -32,6 +36,8 @@ Every generated Call of Duty team is capped at four members, including its leade
 Each participant may use `/commend` once after a rotation, and the recipient must have been on that participant's latest team. Commendations and participation statistics are retained across rotations and bot restarts.
 
 Waiting lists start closed. An administrator must run `/open` before players can join through either the button or `/join`. `/close` prevents new signups without removing anyone already waiting; players can still use `/leave`. Completing `/group` or using `/reset` closes the list automatically.
+
+Birthday reminders are checked at startup and hourly. On a saved birthday, the bot posts a celebratory embed and mention in the configured birthdays channel exactly once that year. The default channel ID is `1545395897347612733`; set `BIRTHDAYS_CHANNEL_ID` to change it.
 
 ## Setup
 

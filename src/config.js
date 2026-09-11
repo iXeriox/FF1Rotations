@@ -13,6 +13,7 @@ export function getConfig({ requireClientId = false } = {}) {
     token: process.env.DISCORD_TOKEN,
     clientId: process.env.DISCORD_CLIENT_ID,
     guildId: process.env.DISCORD_GUILD_ID,
+    birthdaysChannelId: process.env.BIRTHDAYS_CHANNEL_ID ?? '1545395897347612733',
     dataFile: process.env.DATA_FILE ?? './data/rotations.json',
   };
 }

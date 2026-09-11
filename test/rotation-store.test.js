@@ -16,6 +16,7 @@ test('persists isolated guild state', async () => {
     state.waitingOpen = true;
     state.lastGroups = [['leader', 'player']];
     state.ui = { categoryId: 'category', joinChannelId: 'join-channel' };
+    state.birthdays.player = { day: 11, month: 9, year: 1990 };
   });
 
   const reloaded = new RotationStore(file);
@@ -25,6 +26,7 @@ test('persists isolated guild state', async () => {
   assert.equal(reloaded.get('guild-a').waitingOpen, true);
   assert.deepEqual(reloaded.get('guild-a').lastGroups, [['leader', 'player']]);
   assert.equal(reloaded.get('guild-a').ui.categoryId, 'category');
+  assert.deepEqual(reloaded.get('guild-a').birthdays.player, { day: 11, month: 9, year: 1990 });
   assert.deepEqual(reloaded.get('guild-b').players, []);
   const contents = await readFile(file, 'utf8');
   assert.doesNotThrow(() => JSON.parse(contents));

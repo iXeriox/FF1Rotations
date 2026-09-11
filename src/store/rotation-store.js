@@ -9,6 +9,8 @@ const emptyGuild = () => ({
   lastGroups: [],
   commendationsBy: [],
   userStats: {},
+  birthdays: {},
+  birthdayAnnouncements: {},
   pairCounts: {},
   rounds: 0,
   ui: {},

@@ -5,6 +5,7 @@ import { RotationStore } from './store/rotation-store.js';
 import { createRotationUi, JOIN_BUTTON_ID } from './ui/rotation-space.js';
 import { syncCommands } from './services/command-sync.js';
 import { joinWaitingList } from './services/waiting-list.js';
+import { sendBirthdayReminders } from './services/birthday-reminders.js';
 
 const config = getConfig();
 const store = new RotationStore(config.dataFile);
@@ -24,6 +25,11 @@ client.once(Events.ClientReady, async (readyClient) => {
   for (const guild of readyClient.guilds.cache.values()) {
     await rotationUi.ensure(guild).catch((error) => console.error(`Could not set up ${guild.name}:`, error));
   }
+  await sendBirthdayReminders(readyClient, store, config.birthdaysChannelId).catch(console.error);
+  const birthdayTimer = setInterval(() => {
+    void sendBirthdayReminders(readyClient, store, config.birthdaysChannelId).catch(console.error);
+  }, 60 * 60 * 1000);
+  birthdayTimer.unref();
 });
 client.on(Events.GuildCreate, (guild) => {
   void rotationUi.ensure(guild).catch((error) => console.error(`Could not set up ${guild.name}:`, error));

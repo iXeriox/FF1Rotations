@@ -84,21 +84,19 @@ async function handleInteraction(interaction) {
 
 async function dispatchInteraction(interaction) {
   if (interaction.isButton() && interaction.customId === JOIN_BUTTON_ID) {
+    await interaction.deferReply({ ephemeral: true });
     const state = store.get(interaction.guildId);
     if (!state.waitingOpen) {
-      await interaction.reply({ content: 'The rotation waiting list is currently closed.', ephemeral: true });
+      await interaction.editReply('The rotation waiting list is currently closed.');
       return;
     }
     const leaderRoleId = state.ui.leaderRoleId;
     if (leaderRoleId && interaction.member.roles.cache.has(leaderRoleId)) {
-      await interaction.reply({ content: 'You are a Rotation Leader, so you are already included automatically.', ephemeral: true });
+      await interaction.editReply('You are a Rotation Leader, so you are already included automatically.');
       return;
     }
     const result = await store.update(interaction.guildId, (latest) => joinWaitingList(latest, interaction.user.id));
-    await interaction.reply({
-      content: result.message,
-      ephemeral: true,
-    });
+    await interaction.editReply(result.message);
     if (result.ok) await rotationUi.refreshWaiting(interaction.guild);
     return;
   }

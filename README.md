@@ -77,6 +77,8 @@ When `DISCORD_GUILD_ID` is set, commands are registered directly in that server.
 
 The default JSON data file is `data/rotations.json`. Set `DATA_FILE` to use another persistent location. Keep that file on a durable volume in production.
 
+State writes use a unique temporary file per operation and atomic replacement, including when more than one bot process accidentally targets the same data path. Button interactions are acknowledged before disk work begins so slow or failed storage cannot cause Discord's `Unknown interaction` or duplicate-acknowledgement errors.
+
 ## Structure
 
 - `src/commands/` contains one module per command.

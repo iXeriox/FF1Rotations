@@ -1,4 +1,5 @@
-import { mkdir, readFile, rename, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, rename, rm, writeFile } from 'node:fs/promises';
+import { randomUUID } from 'node:crypto';
 import { dirname } from 'node:path';
 
 const emptyGuild = () => ({
@@ -55,12 +56,17 @@ export class RotationStore {
   }
 
   async #save() {
-    this.#writeQueue = this.#writeQueue.then(async () => {
+    const write = async () => {
       await mkdir(dirname(this.#file), { recursive: true });
-      const temporaryFile = `${this.#file}.tmp`;
-      await writeFile(temporaryFile, JSON.stringify(this.#data, null, 2));
-      await rename(temporaryFile, this.#file);
-    });
+      const temporaryFile = `${this.#file}.${process.pid}.${randomUUID()}.tmp`;
+      try {
+        await writeFile(temporaryFile, JSON.stringify(this.#data, null, 2));
+        await rename(temporaryFile, this.#file);
+      } finally {
+        await rm(temporaryFile, { force: true }).catch(() => {});
+      }
+    };
+    this.#writeQueue = this.#writeQueue.then(write, write);
     return this.#writeQueue;
   }
 }

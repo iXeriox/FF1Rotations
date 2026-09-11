@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { mkdtemp, readFile } from 'node:fs/promises';
+import { mkdtemp, readFile, readdir } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
@@ -52,4 +52,21 @@ test('serializes concurrent updates without losing players', async () => {
 
   assert.equal(store.get('guild').players.length, 20);
   assert.deepEqual(store.get('guild').ui, {});
+});
+
+test('uses collision-free temporary files across store instances', async () => {
+  const directory = await mkdtemp(join(tmpdir(), 'rotations-'));
+  const file = join(directory, 'state.json');
+  const first = new RotationStore(file);
+  const second = new RotationStore(file);
+  await Promise.all([first.load(), second.load()]);
+
+  await Promise.all([
+    ...Array.from({ length: 10 }, (_, index) => first.update('guild', (state) => state.players.push(`first-${index}`))),
+    ...Array.from({ length: 10 }, (_, index) => second.update('guild', (state) => state.players.push(`second-${index}`))),
+  ]);
+
+  const contents = await readFile(file, 'utf8');
+  assert.doesNotThrow(() => JSON.parse(contents));
+  assert.deepEqual((await readdir(directory)).filter((name) => name.endsWith('.tmp')), []);
 });

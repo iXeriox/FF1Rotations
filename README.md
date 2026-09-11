@@ -48,6 +48,8 @@ The bot's Discord status is refreshed hourly. It shows **Rotations: Active** whe
 
 Set the server's dedicated channel once with `/stream channel`, then add accounts. Live accounts are scanned concurrently every two minutes using lightweight native HTTP requests. A transition to live posts `@everyone`, the streamer name, and a direct stream link in that configured channel. The channel and alert state are persisted, preventing duplicate messages after restarts. TikTok detection uses its public live page and may be affected by TikTok anti-bot changes; Twitch uses the official API and requires `TWITCH_CLIENT_ID` and `TWITCH_CLIENT_SECRET`. Provider checks are isolated behind adapters so more platforms can be added without changing commands or the scanner.
 
+`/stream` is deliberately visible in Discord's command picker for everyone so it cannot disappear because of Discord's cached command-permission metadata. Its management actions still enforce **Manage Server** permission when executed.
+
 ## Setup
 
 1. Install Node.js 20 or newer and run `npm install`.

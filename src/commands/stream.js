@@ -7,7 +7,6 @@ const platformOption = (option) => option.setName('platform').setDescription('St
 
 export default {
   data: new SlashCommandBuilder().setName('stream').setDescription('Manage live-stream notifications.')
-    .setDefaultMemberPermissions('32')
     .addSubcommand((command) => command.setName('add').setDescription('Monitor a TikTok or Twitch user.')
       .addStringOption(platformOption)
       .addStringOption((option) => option.setName('name').setDescription('TikTok or Twitch username.').setRequired(true)))

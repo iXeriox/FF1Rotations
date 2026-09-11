@@ -10,11 +10,18 @@ export async function syncCommands(client, commands, guildId) {
 
   if (guildId) {
     const guild = await client.guilds.fetch(guildId);
-    await guild.commands.set(definitions);
+    await replaceGuildCommands(guild, definitions);
     return `Synced ${definitions.length} commands to ${guild.name}.`;
   }
 
   const guilds = [...client.guilds.cache.values()];
-  await Promise.all(guilds.map((guild) => guild.commands.set(definitions)));
+  await Promise.all(guilds.map((guild) => replaceGuildCommands(guild, definitions)));
   return `Synced ${definitions.length} commands to ${guilds.length} guild${guilds.length === 1 ? '' : 's'}.`;
+}
+
+async function replaceGuildCommands(guild, definitions) {
+  const registered = await guild.commands.set(definitions);
+  if (!registered?.has) return;
+  const missing = definitions.filter(({ name }) => !registered.has(name) && !registered.some((command) => command.name === name));
+  if (missing.length) throw new Error(`Discord did not register commands: ${missing.map(({ name }) => name).join(', ')}`);
 }

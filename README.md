@@ -33,6 +33,8 @@ On startup, the bot automatically creates a **Rotation Leader** role and a **Rot
 - **#join-rotation** — visible to everyone but read-only, with an embed and button for joining the waiting list. The embed lists queued players in order with Discord-relative wait times, while button confirmations are private.
 - **#grouping** — visible to everyone but read-only. Its placeholder embed is replaced with one team embed per leader after `/group`.
 
+Both rotation views use resolved server display names rather than raw Discord mention tokens, so names render consistently on desktop and mobile. The queue uses a numbered, timestamped signup order; grouping uses a polished squad card per leader with a clearly separated leader, roster, and four-player capacity.
+
 The IDs of the generated role, category, channels, and messages are persisted. On restart the bot restores those exact resources, moves its channels back under the Rotations category if necessary, and refreshes both embeds from stored state. It never adopts or overwrites unrelated channels merely because they have the same name; if a managed resource is deleted, the bot creates a replacement.
 
 Leaders are included automatically and never need to join the player queue. After `/group`, all player signups and leaders are cleared and leader roles are removed, ready for the next rotation. Only the immediately previous game's teammate pairings are retained, so the next grouping avoids repeats where possible without permanently penalising older matches. `/reset history:true` can also forget that last game.

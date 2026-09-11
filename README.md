@@ -10,6 +10,7 @@ A small, modular Discord.js bot for organising event rotations. Players opt in, 
 | `/leave` | Everyone | Leave the player queue. |
 | `/open` | Manage Server | Open the waiting list and enable its join button. |
 | `/close` | Manage Server | Close the waiting list and disable new signups. |
+| `/addplayer user` | Manage Server | Manually add a member to the open waiting list. |
 | `/rotation` | Everyone | View leaders, players, and recorded rounds. |
 | `/addleader member` | Manage Server | Give a member the persistent Rotation Leader role. |
 | `/removeleader member` | Manage Server | Remove a member's Rotation Leader role. |
@@ -41,6 +42,8 @@ Every generated Call of Duty team is capped at four members, including its leade
 Each participant may use `/commend` once after a rotation, and the recipient must have been on that participant's latest team. Commendations and participation statistics are retained across rotations and bot restarts.
 
 Waiting lists start closed. An administrator must run `/open` before players can join through either the button or `/join`. `/close` prevents new signups without removing anyone already waiting; players can still use `/leave`. Completing `/group` or using `/reset` closes the list automatically.
+
+Administrators can use `/addplayer user` to add somebody on their behalf while the waiting list is open. Manual additions follow the same duplicate and leader checks as self-service joins, record the time they were added, and immediately refresh the public queue embed.
 
 Birthday reminders are checked at startup and hourly. On a saved birthday, the bot posts a celebratory embed and mention in the configured birthdays channel exactly once that year. The default channel ID is `1545395897347612733`; set `BIRTHDAYS_CHANNEL_ID` to change it.
 

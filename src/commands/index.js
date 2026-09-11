@@ -1,4 +1,5 @@
 import addleader from './addleader.js';
+import addplayer from './addplayer.js';
 import birthday from './birthday.js';
 import birthdays from './birthdays.js';
 import commend from './commend.js';
@@ -14,5 +15,5 @@ import stats from './stats.js';
 import stream from './stream.js';
 
 export const commands = [
-  join, leave, open, close, addleader, removeleader, group, reset, status, commend, stats, birthday, birthdays, stream,
+  join, leave, open, close, addplayer, addleader, removeleader, group, reset, status, commend, stats, birthday, birthdays, stream,
 ];

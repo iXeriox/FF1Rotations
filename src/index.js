@@ -6,6 +6,7 @@ import { createRotationUi, JOIN_BUTTON_ID } from './ui/rotation-space.js';
 import { syncCommands } from './services/command-sync.js';
 import { joinWaitingList } from './services/waiting-list.js';
 import { sendBirthdayReminders } from './services/birthday-reminders.js';
+import { createBotStatus } from './services/bot-status.js';
 
 const config = getConfig();
 const store = new RotationStore(config.dataFile);
@@ -14,6 +15,7 @@ const rotationUi = createRotationUi(store);
 
 const commandMap = new Map(commands.map((command) => [command.data.name, command]));
 const client = new Client({ intents: [GatewayIntentBits.Guilds] });
+const botStatus = createBotStatus(client, store);
 
 client.once(Events.ClientReady, async (readyClient) => {
   console.log(`Ready as ${readyClient.user.tag}.`);
@@ -26,10 +28,12 @@ client.once(Events.ClientReady, async (readyClient) => {
     await rotationUi.ensure(guild).catch((error) => console.error(`Could not set up ${guild.name}:`, error));
   }
   await sendBirthdayReminders(readyClient, store, config.birthdaysChannelId).catch(console.error);
-  const birthdayTimer = setInterval(() => {
+  await botStatus.refresh();
+  const hourlyTimer = setInterval(() => {
     void sendBirthdayReminders(readyClient, store, config.birthdaysChannelId).catch(console.error);
+    void botStatus.refresh().catch(console.error);
   }, 60 * 60 * 1000);
-  birthdayTimer.unref();
+  hourlyTimer.unref();
 });
 client.on(Events.GuildCreate, (guild) => {
   void rotationUi.ensure(guild).catch((error) => console.error(`Could not set up ${guild.name}:`, error));
@@ -67,7 +71,7 @@ async function handleInteraction(interaction) {
   if (!interaction.isChatInputCommand()) return;
   const command = commandMap.get(interaction.commandName);
   if (!command) return;
-  await command.execute(interaction, { store, rotationUi });
+  await command.execute(interaction, { store, rotationUi, botStatus });
 }
 
 await client.login(config.token);

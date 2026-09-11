@@ -8,7 +8,7 @@ export default {
     .setName('group')
     .setDescription('Create balanced groups that minimise repeat teammates.')
     .setDefaultMemberPermissions('32'),
-  async execute(interaction, { store, rotationUi }) {
+  async execute(interaction, { store, rotationUi, botStatus }) {
     if (!guildOnly(interaction) || !requireAdmin(interaction)) return;
     await interaction.deferReply({ ephemeral: true });
     const state = store.get(interaction.guildId);
@@ -29,6 +29,7 @@ export default {
     });
     await rotationUi.publishGroups(interaction.guild, groups);
     await rotationUi.refreshWaiting(interaction.guild);
+    await botStatus.refresh();
     const output = groups.map((group, index) => `**Team ${index + 1}:** ${group.map(mention).join(', ')}`).join('\n');
     await interaction.editReply(`Groups published and the waiting list was reset.\n\n${output}`);
   },

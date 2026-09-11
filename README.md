@@ -39,6 +39,8 @@ Waiting lists start closed. An administrator must run `/open` before players can
 
 Birthday reminders are checked at startup and hourly. On a saved birthday, the bot posts a celebratory embed and mention in the configured birthdays channel exactly once that year. The default channel ID is `1545395897347612733`; set `BIRTHDAYS_CHANNEL_ID` to change it.
 
+The bot's Discord status is refreshed hourly. It shows **Rotations: Active** whenever any waiting list is open; otherwise it displays the number of saved birthdays. Opening or closing rotations and adding or removing birthdays refreshes it immediately.
+
 ## Setup
 
 1. Install Node.js 20 or newer and run `npm install`.

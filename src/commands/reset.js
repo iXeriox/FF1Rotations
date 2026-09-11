@@ -7,7 +7,7 @@ export default {
     .setDescription('Reset rotation signup data.')
     .setDefaultMemberPermissions('32')
     .addBooleanOption((option) => option.setName('history').setDescription('Also forget previous teammate matches.')),
-  async execute(interaction, { store, rotationUi }) {
+  async execute(interaction, { store, rotationUi, botStatus }) {
     if (!guildOnly(interaction) || !requireAdmin(interaction)) return;
     await interaction.deferReply({ ephemeral: true });
     const history = interaction.options.getBoolean('history') ?? false;
@@ -26,6 +26,7 @@ export default {
       }
     });
     await Promise.all([rotationUi.refreshWaiting(interaction.guild), rotationUi.resetGroups(interaction.guild)]);
+    await botStatus.refresh();
     await interaction.editReply(`Rotation cleared${history ? ', including matching history' : '; matching history was kept to avoid repeats'}.`);
   },
 };

@@ -10,7 +10,7 @@ export default {
       .addIntegerOption((option) => option.setName('year').setDescription('Four-digit birth year.').setMinValue(1900).setRequired(true)))
     .addSubcommand((command) => command.setName('remove').setDescription('Remove your saved birthday.'))
     .addSubcommand((command) => command.setName('help').setDescription('Explain birthday reminders.')),
-  async execute(interaction, { store }) {
+  async execute(interaction, { store, botStatus }) {
     if (!guildOnly(interaction)) return;
     const subcommand = interaction.options.getSubcommand();
     if (subcommand === 'help') {
@@ -22,6 +22,7 @@ export default {
     }
     if (subcommand === 'remove') {
       const removed = await store.update(interaction.guildId, (state) => removeBirthday(state, interaction.user.id));
+      if (removed) await botStatus.refresh();
       await interaction.reply({ content: removed ? 'Your birthday was removed.' : 'You do not have a saved birthday.', ephemeral: true });
       return;
     }
@@ -30,6 +31,7 @@ export default {
     const month = interaction.options.getInteger('month', true);
     const year = interaction.options.getInteger('year', true);
     const result = await store.update(interaction.guildId, (state) => setBirthday(state, interaction.user.id, day, month, year));
+    if (result.ok) await botStatus.refresh();
     await interaction.reply({
       content: result.ok ? `Birthday saved as **${day}/${month}/${year}**.` : result.message,
       ephemeral: true,

@@ -260,8 +260,8 @@ export function createRotationUi(store) {
 
   async function publishGroups(guild, groups) {
     const ui = await ensure(guild);
-    const displayNames = await resolveDisplayNames(guild, groups.flat(), state.mockUsers);
     const state = store.get(guild.id);
+    const displayNames = await resolveDisplayNames(guild, groups.flat(), state.mockUsers);
     const embeds = groupEmbeds(groups, displayNames, state.lobbyCodes);
     await ui.groupingMessage.edit({
       content: `Groups generated <t:${Math.floor(Date.now() / 1000)}:R>`,

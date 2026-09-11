@@ -56,3 +56,16 @@ export async function acquireInstanceLock(file, options = {}) {
   }
   throw new Error('Could not acquire the bot instance lock.');
 }
+
+export async function acquireInstanceLocks(files, options = {}) {
+  const releases = [];
+  try {
+    for (const file of new Set(files)) releases.push(await acquireInstanceLock(file, options));
+  } catch (error) {
+    await Promise.all(releases.map((release) => release()));
+    throw error;
+  }
+  return async () => {
+    await Promise.all(releases.reverse().map((release) => release()));
+  };
+}

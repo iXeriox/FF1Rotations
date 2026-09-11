@@ -11,11 +11,11 @@ import { checkTikTok, createTwitchProvider } from './services/stream-providers.j
 import { createStreamScanner } from './services/stream-scanner.js';
 import { createConsoleLogger } from './services/console-logger.js';
 import { announceCallOfDutyId } from './services/player-id-announcements.js';
-import { acquireInstanceLock } from './services/instance-lock.js';
+import { acquireInstanceLocks } from './services/instance-lock.js';
 import { createInteractionGuard } from './services/interaction-guard.js';
 
 const config = getConfig();
-const releaseInstanceLock = await acquireInstanceLock(config.instanceLockFile);
+const releaseInstanceLock = await acquireInstanceLocks([config.instanceLockFile, config.tokenLockFile]);
 const store = new RotationStore(config.dataFile);
 await store.load();
 const rotationUi = createRotationUi(store);
@@ -28,6 +28,7 @@ const streamScanner = createStreamScanner(client, store, {
   twitch: createTwitchProvider(config.twitchClientId, config.twitchClientSecret),
 });
 const logger = createConsoleLogger();
+logger.system(`Runtime revision=interaction-lease-v3 pid=${process.pid} lock=${config.instanceLockFile}.`);
 const playerIdAnnouncements = {
   send: (user, callOfDutyId) => announceCallOfDutyId(
     client,

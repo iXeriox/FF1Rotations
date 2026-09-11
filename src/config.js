@@ -1,4 +1,7 @@
 import 'dotenv/config';
+import { createHash } from 'node:crypto';
+import { join } from 'node:path';
+import { tmpdir } from 'node:os';
 
 export function getConfig({ requireClientId = false } = {}) {
   const required = ['DISCORD_TOKEN'];
@@ -10,6 +13,7 @@ export function getConfig({ requireClientId = false } = {}) {
   }
 
   const dataFile = process.env.DATA_FILE ?? './data/rotations.json';
+  const tokenFingerprint = createHash('sha256').update(process.env.DISCORD_TOKEN).digest('hex').slice(0, 16);
   return {
     token: process.env.DISCORD_TOKEN,
     clientId: process.env.DISCORD_CLIENT_ID,
@@ -20,5 +24,6 @@ export function getConfig({ requireClientId = false } = {}) {
     twitchClientSecret: process.env.TWITCH_CLIENT_SECRET,
     dataFile,
     instanceLockFile: process.env.INSTANCE_LOCK_FILE ?? `${dataFile}.lock`,
+    tokenLockFile: process.env.BOT_TOKEN_LOCK_FILE ?? join(tmpdir(), `ff1rotations-${tokenFingerprint}.lock`),
   };
 }

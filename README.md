@@ -79,7 +79,9 @@ The default JSON data file is `data/rotations.json`. Set `DATA_FILE` to use anot
 
 State writes use a unique temporary file per operation and atomic replacement, including when more than one bot process accidentally targets the same data path. Button interactions are acknowledged before disk work begins so slow or failed storage cannot cause Discord's `Unknown interaction` or duplicate-acknowledgement errors.
 
-The runtime also holds a leased `INSTANCE_LOCK_FILE` (default: `./data/rotations.json.lock`) with a five-second heartbeat. A fresh lock is respected even across isolated process/container namespaces, so a second bot process exits instead of connecting the same token and acknowledging every interaction twice. Locks become recoverable 30 seconds after a crashed owner stops heartbeating; graceful shutdown removes them immediately. An in-memory interaction guard also ignores duplicate event delivery. Discord acknowledgement errors `40060` and `10062` are logged once without another response attempt.
+The runtime holds two five-second-heartbeat leases: `INSTANCE_LOCK_FILE` beside the data and a token-specific `BOT_TOKEN_LOCK_FILE` in the OS temporary directory. Together they stop duplicate processes that share either storage or a host, even when they use different working directories. Locks become recoverable 30 seconds after a crashed owner stops heartbeating; graceful shutdown removes them immediately. An in-memory interaction guard also ignores duplicate event delivery. Discord acknowledgement errors `40060` and `10062` are logged once without another response attempt.
+
+At startup, the current build prints `Runtime revision=interaction-lease-v3` with its PID. If interaction logs do not include both `pid=` and `interaction=`, the host is still running an older build and must be fully stopped and redeployed; the old stack traces shown above came from the pre-lease handler that called `ButtonInteraction.reply` directly.
 
 ## Structure
 

@@ -51,7 +51,7 @@ Use `/id id:iXeriox#6447986` to save a Call of Duty ID. IDs containing spaces, s
 
 Every successful `/id` update also posts a professional announcement mentioning the member in channel `1530580498265538600`. Set `ACTIVISION_IDS_CHANNEL_ID` to use a different channel; if that channel is unavailable, the ID is still saved and the member receives a warning.
 
-Waiting lists start closed. An administrator must run `/open` before players can join through either the button or `/join`. `/close` prevents new signups without removing anyone already waiting; players can still use `/leave`. Completing `/group` or using `/reset` closes the list automatically.
+Waiting lists start closed. An administrator must run `/open` before players can join through either the button or `/join`. Opening a rotation clears the previous leader selection and removes the Rotation Leader role from every stored leader, ready for administrators to choose a fresh set. `/close` prevents new signups without removing anyone already waiting; players can still use `/leave`. Completing `/group` or using `/reset` closes the list automatically.
 
 Administrators can use `/addplayer user` to add somebody on their behalf while the waiting list is open. Manual additions follow the same duplicate and leader checks as self-service joins, record the time they were added, and immediately refresh the public queue embed.
 

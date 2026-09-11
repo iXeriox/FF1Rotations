@@ -240,12 +240,16 @@ export function createRotationUi(store) {
 
   async function clearLeaderRoles(guild, leaderIds) {
     const { leaderRole } = await ensure(guild);
-    await Promise.all(leaderIds.map(async (memberId) => {
+    const knownLeaderIds = new Set([...leaderIds, ...leaderRole.members.keys()]);
+    const removed = await Promise.all([...knownLeaderIds].map(async (memberId) => {
       const member = await guild.members.fetch(memberId).catch(() => null);
       if (member?.roles.cache.has(leaderRole.id)) {
         await member.roles.remove(leaderRole, 'Rotation completed');
+        return true;
       }
+      return false;
     }));
+    return removed.filter(Boolean).length;
   }
 
   return { ensure, publishGroups, refreshWaiting, refreshGroups, resetGroups, clearLeaderRoles };

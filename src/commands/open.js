@@ -7,13 +7,19 @@ export default {
   async execute(interaction, { store, rotationUi, botStatus }) {
     if (!guildOnly(interaction) || !requireAdmin(interaction)) return;
     await interaction.deferReply({ ephemeral: true });
+    const current = store.get(interaction.guildId);
+    const removedLeaders = await rotationUi.clearLeaderRoles(interaction.guild, current.leaders);
     const changed = await store.update(interaction.guildId, (state) => {
-      if (state.waitingOpen) return false;
+      const wasOpen = state.waitingOpen;
       state.waitingOpen = true;
-      return true;
+      state.leaders = [];
+      return !wasOpen;
     });
     await rotationUi.refreshWaiting(interaction.guild);
     await botStatus.refresh();
-    await interaction.editReply(changed ? 'The rotation waiting list is now open.' : 'The waiting list is already open.');
+    const leaderSummary = removedLeaders
+      ? ` Removed the Rotation Leader role from ${removedLeaders} previous leader${removedLeaders === 1 ? '' : 's'}.`
+      : ' Previous leaders were cleared.';
+    await interaction.editReply(`${changed ? 'The rotation waiting list is now open.' : 'The waiting list was already open.'}${leaderSummary}`);
   },
 };

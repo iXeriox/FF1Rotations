@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { syncCommands } from '../src/services/command-sync.js';
+import { syncCommands, syncCommandsWithRetry } from '../src/services/command-sync.js';
 
 const commands = [
   { data: { toJSON: () => ({ name: 'join', description: 'Join.' }) } },
@@ -49,4 +49,21 @@ test('rejects duplicate local command names before registration', async () => {
     guilds: { cache: new Map() },
   };
   await assert.rejects(syncCommands(client, duplicateCommands), /duplicate local slash-command names/i);
+});
+
+test('retries transient command registration failures', async () => {
+  let calls = 0;
+  const guild = { commands: { set: async () => {
+    calls += 1;
+    if (calls < 3) throw new Error('temporary Discord failure');
+  } } };
+  const client = {
+    application: { commands: { set: async () => {} } },
+    guilds: { cache: new Map([['guild', guild]]) },
+  };
+
+  const message = await syncCommandsWithRetry(client, commands, undefined, { attempts: 3, delayMs: 1 });
+
+  assert.equal(calls, 3);
+  assert.match(message, /synced 2 commands/i);
 });

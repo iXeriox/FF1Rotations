@@ -16,6 +16,7 @@ test('persists isolated guild state', async () => {
     state.waitingOpen = true;
     state.lastGroups = [['leader', 'player']];
     state.lobbyCodes.leader = 'ABC123';
+    state.mockUsers['mock:test'] = 'Test Player';
     state.ui = { categoryId: 'category', joinChannelId: 'join-channel' };
     state.birthdays.player = { day: 11, month: 9, year: 1990 };
     state.streams['twitch:player'] = { platform: 'twitch', name: 'player', channelId: 'alerts', isLive: false };
@@ -30,6 +31,7 @@ test('persists isolated guild state', async () => {
   assert.equal(reloaded.get('guild-a').waitingOpen, true);
   assert.deepEqual(reloaded.get('guild-a').lastGroups, [['leader', 'player']]);
   assert.equal(reloaded.get('guild-a').lobbyCodes.leader, 'ABC123');
+  assert.equal(reloaded.get('guild-a').mockUsers['mock:test'], 'Test Player');
   assert.equal(reloaded.get('guild-a').ui.categoryId, 'category');
   assert.deepEqual(reloaded.get('guild-a').birthdays.player, { day: 11, month: 9, year: 1990 });
   assert.equal(reloaded.get('guild-a').streams['twitch:player'].channelId, 'alerts');

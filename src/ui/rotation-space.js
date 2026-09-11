@@ -84,8 +84,9 @@ export const groupEmbeds = (groups, displayNames, lobbyCodes = {}) => groups.map
     .setFooter({ text: `${group.length} / 4 members  •  Squad ${index + 1} of ${groups.length}` });
 });
 
-async function resolveDisplayNames(guild, userIds) {
+async function resolveDisplayNames(guild, userIds, mockUsers = {}) {
   const entries = await Promise.all([...new Set(userIds)].map(async (userId) => {
+    if (mockUsers[userId]) return [userId, escapeMarkdown(`${mockUsers[userId]} (mock)`)];
     const member = guild.members.cache.get(userId) ?? await guild.members.fetch(userId).catch(() => null);
     const name = member?.displayName ?? member?.user?.username ?? 'Unknown member';
     return [userId, escapeMarkdown(name)];
@@ -93,25 +94,54 @@ async function resolveDisplayNames(guild, userIds) {
   return new Map(entries);
 }
 
-export async function removeRoleFromAllMembers(guild, role, fallbackIds = []) {
+export async function removeRoleFromAllMembersDetailed(guild, role, fallbackIds = []) {
   const fetchedMembers = await guild.members.fetch().catch(() => null);
   const fetchedRoleMembers = fetchedMembers
     ? [...fetchedMembers.values()].filter((member) => member.roles.cache.has(role.id)).map((member) => member.id)
     : [];
   const memberIds = new Set([...fallbackIds, ...role.members.keys(), ...fetchedRoleMembers]);
-  const removed = await Promise.all([...memberIds].map(async (memberId) => {
+  const results = await Promise.all([...memberIds].map(async (memberId) => {
     const member = fetchedMembers?.get(memberId)
       ?? await guild.members.fetch(memberId).catch(() => null);
-    if (!member?.roles.cache.has(role.id)) return false;
-    await member.roles.remove(role, 'Rotation leaders reset');
-    return true;
+    if (!member?.roles.cache.has(role.id)) return null;
+    try {
+      await member.roles.remove(role, 'Rotation leaders reset');
+      return { removed: memberId };
+    } catch (error) {
+      return { failed: memberId, error: error?.message ?? String(error) };
+    }
   }));
-  return removed.filter(Boolean).length;
+  return {
+    removed: results.flatMap((result) => result?.removed ? [result.removed] : []),
+    failed: results.flatMap((result) => result?.failed ? [{ id: result.failed, error: result.error }] : []),
+  };
+}
+
+export async function removeRoleFromAllMembers(guild, role, fallbackIds = []) {
+  const result = await removeRoleFromAllMembersDetailed(guild, role, fallbackIds);
+  return result.removed.length;
 }
 
 async function getMessage(channel, messageId) {
   if (!messageId) return null;
   return channel.messages.fetch(messageId).catch(() => null);
+}
+
+async function clearRecentMessages(channel) {
+  let deleted = 0;
+  let before;
+  while (true) {
+    const messages = await channel.messages.fetch({ limit: 100, ...(before ? { before } : {}) });
+    const page = [...messages.values()];
+    if (!page.length) break;
+    before = page.at(-1).id;
+    const results = await Promise.all(page.map((message) => message.delete()
+      .then(() => true)
+      .catch(() => false)));
+    deleted += results.filter(Boolean).length;
+    if (page.length < 100) break;
+  }
+  return deleted;
 }
 
 async function findOrCreateChannel(guild, savedId, name, options) {
@@ -186,7 +216,7 @@ export function createRotationUi(store) {
     }
 
     let joinMessage = await getMessage(joinChannel, current.ui.joinMessageId);
-    const displayNames = await resolveDisplayNames(guild, [...current.players, ...current.lastGroups.flat()]);
+    const displayNames = await resolveDisplayNames(guild, [...current.players, ...current.lastGroups.flat()], current.mockUsers);
     joinMessage ??= await joinChannel.send({ embeds: [waitingEmbed(guild, current, displayNames)], components: joinComponents(current.waitingOpen) });
     let groupingMessage = await getMessage(groupingChannel, current.ui.groupingMessageId);
     const currentGroupEmbeds = groupEmbeds(current.lastGroups, displayNames, current.lobbyCodes);
@@ -224,13 +254,13 @@ export function createRotationUi(store) {
   async function refreshWaiting(guild) {
     const ui = await ensure(guild);
     const state = store.get(guild.id);
-    const displayNames = await resolveDisplayNames(guild, state.players);
+    const displayNames = await resolveDisplayNames(guild, state.players, state.mockUsers);
     await ui.joinMessage.edit({ embeds: [waitingEmbed(guild, state, displayNames)], components: joinComponents(state.waitingOpen) });
   }
 
   async function publishGroups(guild, groups) {
     const ui = await ensure(guild);
-    const displayNames = await resolveDisplayNames(guild, groups.flat());
+    const displayNames = await resolveDisplayNames(guild, groups.flat(), state.mockUsers);
     const state = store.get(guild.id);
     const embeds = groupEmbeds(groups, displayNames, state.lobbyCodes);
     await ui.groupingMessage.edit({
@@ -250,6 +280,33 @@ export function createRotationUi(store) {
     await store.update(guild.id, (state) => { state.ui.groupMessageIds = []; });
   }
 
+  async function resetJoinChannel(guild) {
+    const { joinChannel } = await ensure(guild);
+    const deleted = await clearRecentMessages(joinChannel);
+    const state = store.get(guild.id);
+    const displayNames = await resolveDisplayNames(guild, state.players, state.mockUsers);
+    const joinMessage = await joinChannel.send({
+      embeds: [waitingEmbed(guild, state, displayNames)],
+      components: joinComponents(state.waitingOpen),
+    });
+    await store.update(guild.id, (latest) => { latest.ui.joinMessageId = joinMessage.id; });
+    return deleted;
+  }
+
+  async function resetGroupingChannel(guild) {
+    const { groupingChannel } = await ensure(guild);
+    const deleted = await clearRecentMessages(groupingChannel);
+    const groupingMessage = await groupingChannel.send({ embeds: [groupingPlaceholder()] });
+    await store.update(guild.id, (state) => {
+      state.ui.groupingMessageId = groupingMessage.id;
+      state.ui.groupMessageIds = [];
+      state.lastGroups = [];
+      state.lobbyCodes = {};
+      state.commendationsBy = [];
+    });
+    return deleted;
+  }
+
   async function refreshGroups(guild) {
     await ensure(guild);
   }
@@ -261,5 +318,20 @@ export function createRotationUi(store) {
     return removeRoleFromAllMembers(guild, leaderRole, leaderIds);
   }
 
-  return { ensure, publishGroups, refreshWaiting, refreshGroups, resetGroups, clearLeaderRoles };
+  async function clearLeaderRolesDetailed(guild, leaderIds) {
+    const { leaderRole } = await ensure(guild);
+    return removeRoleFromAllMembersDetailed(guild, leaderRole, leaderIds);
+  }
+
+  return {
+    ensure,
+    publishGroups,
+    refreshWaiting,
+    refreshGroups,
+    resetGroups,
+    resetJoinChannel,
+    resetGroupingChannel,
+    clearLeaderRoles,
+    clearLeaderRolesDetailed,
+  };
 }

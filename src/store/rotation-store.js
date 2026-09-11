@@ -6,6 +6,7 @@ const emptyGuild = () => ({
   players: [],
   playerQueuedAt: {},
   leaders: [],
+  mockUsers: {},
   waitingOpen: false,
   lastGroups: [],
   lobbyCodes: {},

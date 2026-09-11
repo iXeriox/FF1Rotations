@@ -19,6 +19,21 @@ export async function syncCommands(client, commands, guildId) {
   return `Synced ${definitions.length} commands to ${guilds.length} guild${guilds.length === 1 ? '' : 's'}.`;
 }
 
+export async function syncCommandsWithRetry(client, commands, guildId, options = {}) {
+  const attempts = options.attempts ?? 3;
+  const delayMs = options.delayMs ?? 2_000;
+  let lastError;
+  for (let attempt = 1; attempt <= attempts; attempt += 1) {
+    try {
+      return await syncCommands(client, commands, guildId);
+    } catch (error) {
+      lastError = error;
+      if (attempt < attempts) await new Promise((resolve) => setTimeout(resolve, delayMs * attempt));
+    }
+  }
+  throw lastError;
+}
+
 async function replaceGuildCommands(guild, definitions) {
   const registered = await guild.commands.set(definitions);
   if (!registered?.has) return;

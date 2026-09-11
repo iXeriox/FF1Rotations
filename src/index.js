@@ -3,7 +3,7 @@ import { commands } from './commands/index.js';
 import { getConfig } from './config.js';
 import { RotationStore } from './store/rotation-store.js';
 import { createRotationUi, JOIN_BUTTON_ID } from './ui/rotation-space.js';
-import { syncCommands } from './services/command-sync.js';
+import { syncCommandsWithRetry } from './services/command-sync.js';
 import { joinWaitingList } from './services/waiting-list.js';
 import { sendBirthdayReminders } from './services/birthday-reminders.js';
 import { createBotStatus } from './services/bot-status.js';
@@ -28,7 +28,7 @@ const streamScanner = createStreamScanner(client, store, {
   twitch: createTwitchProvider(config.twitchClientId, config.twitchClientSecret),
 });
 const logger = createConsoleLogger();
-logger.system(`Runtime revision=interaction-lease-v3 pid=${process.pid} lock=${config.instanceLockFile}.`);
+logger.system(`Runtime revision=interaction-sync-v4 pid=${process.pid} lock=${config.instanceLockFile}.`);
 const playerIdAnnouncements = {
   send: (user, callOfDutyId) => announceCallOfDutyId(
     client,
@@ -42,9 +42,14 @@ const interactionGuard = createInteractionGuard();
 client.once(Events.ClientReady, async (readyClient) => {
   logger.system(`Ready as ${readyClient.user.tag}.`);
   try {
-    logger.system(await syncCommands(readyClient, commands, config.guildId));
+    logger.system(await syncCommandsWithRetry(readyClient, commands, config.guildId));
+    logger.system(`Registered command manifest: ${commands.map((command) => `/${command.data.name}`).join(', ')}.`);
   } catch (error) {
     console.error('Could not register slash commands:', error);
+    logger.system('Command synchronization failed after three attempts; stopping instead of serving stale commands.');
+    readyClient.destroy();
+    await releaseInstanceLock();
+    return;
   }
   for (const guild of readyClient.guilds.cache.values()) {
     await rotationUi.ensure(guild).catch((error) => console.error(`Could not set up ${guild.name}:`, error));
@@ -62,7 +67,7 @@ client.once(Events.ClientReady, async (readyClient) => {
 });
 client.on(Events.GuildCreate, (guild) => {
   void rotationUi.ensure(guild).catch((error) => console.error(`Could not set up ${guild.name}:`, error));
-  void syncCommands(client, commands, guild.id).catch((error) => console.error(`Could not register commands in ${guild.name}:`, error));
+  void syncCommandsWithRetry(client, commands, guild.id).catch((error) => console.error(`Could not register commands in ${guild.name}:`, error));
 });
 client.on(Events.InteractionCreate, (interaction) => {
   if (!interactionGuard.claim(interaction.id)) {
@@ -100,6 +105,10 @@ async function handleInteraction(interaction) {
     await dispatchInteraction(interaction);
     logger.interactionCompleted(interaction, performance.now() - startedAt);
   } catch (error) {
+    if (error.code === 40060 || error.code === 10062) {
+      logger.system(`Interaction id=${interaction.id} was claimed by another connected bot process (Discord code ${error.code}); this process did not retry it.`);
+      return;
+    }
     logger.interactionFailed(interaction, performance.now() - startedAt, error);
     throw error;
   }
@@ -108,16 +117,9 @@ async function handleInteraction(interaction) {
 async function dispatchInteraction(interaction) {
   if (interaction.isButton() && interaction.customId === JOIN_BUTTON_ID) {
     await interaction.deferReply({ ephemeral: true });
-    const state = store.get(interaction.guildId);
-    if (!state.waitingOpen) {
-      await interaction.editReply('The rotation waiting list is currently closed.');
-      return;
-    }
-    const leaderRoleId = state.ui.leaderRoleId;
-    if (leaderRoleId && interaction.member.roles.cache.has(leaderRoleId)) {
-      await interaction.editReply('You are a Rotation Leader, so you are already included automatically.');
-      return;
-    }
+    // The persisted leader list is authoritative. Do not inspect the member's
+    // interaction cache here: it can still contain a role just removed by
+    // /open and would incorrectly block a previous leader from joining.
     const result = await store.update(interaction.guildId, (latest) => joinWaitingList(latest, interaction.user.id));
     await interaction.editReply(result.message);
     if (result.ok) await rotationUi.refreshWaiting(interaction.guild);

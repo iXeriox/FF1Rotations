@@ -29,6 +29,11 @@ A small, modular Discord.js bot for organising event rotations. Players opt in, 
 | `/stream remove platform name` | Manage Server | Stop monitoring a streamer. |
 | `/stream list` | Manage Server | Show monitored accounts and notification channels. |
 | `/stream help` | Manage Server | Explain setup and provider requirements. |
+| `/dev ...` | Bot developer only | Private rotation controls and diagnostic lists. |
+| `/dev add randomuser` | Bot developer only | Add a randomly named mock player for testing. |
+| `/dev add randomleader` | Bot developer only | Add a randomly named mock leader for testing. |
+| `/dev reset join-rotation` | Bot developer only | Clear the join channel and regenerate its live queue panel. |
+| `/dev clear-grouping` | Bot developer only | Clear the grouping channel and restore its placeholder. |
 
 On startup, the bot automatically creates a **Rotation Leader** role and a **Rotations** category containing:
 
@@ -51,7 +56,7 @@ Use `/id id:iXeriox#6447986` to save a Call of Duty ID. IDs containing spaces, s
 
 Every successful `/id` update also posts a professional announcement mentioning the member in channel `1530580498265538600`. Set `ACTIVISION_IDS_CHANNEL_ID` to use a different channel; if that channel is unavailable, the ID is still saved and the member receives a warning.
 
-Waiting lists start closed. An administrator must run `/open` before players can join through either the button or `/join`. Opening a rotation clears the previous leader selection and removes the Rotation Leader role from every stored leader, ready for administrators to choose a fresh set. `/close` prevents new signups without removing anyone already waiting; players can still use `/leave`. Completing `/group` or using `/reset` closes the list automatically.
+Waiting lists start closed. An administrator must run `/open` before players can join through either the button or `/join`. Opening a rotation clears the saved leader selection and enables the join button immediately, before the full Rotation Leader role scan finishes. Previous leaders can therefore join the new queue normally; stale Discord role-cache data is never used to block them. `/close` prevents new signups without removing anyone already waiting; players can still use `/leave`. Completing `/group` or using `/reset` closes the list automatically.
 
 Administrators can use `/addplayer user` to add somebody on their behalf while the waiting list is open. Manual additions follow the same duplicate and leader checks as self-service joins, record the time they were added, and immediately refresh the public queue embed.
 
@@ -73,7 +78,7 @@ Set the server's dedicated channel once with `/stream channel`, then add account
 4. Invite the bot with the `bot` and `applications.commands` scopes. Grant it **Manage Channels**, **Manage Roles**, **View Channels**, **Send Messages**, and **Read Message History**. Keep the bot's role above the generated Rotation Leader role.
 5. Run `npm start`. The bot automatically registers or updates all slash commands whenever it connects.
 
-When `DISCORD_GUILD_ID` is set, commands are registered directly in that server. Without it, the bot registers commands directly in every connected server. Both modes make new commands available immediately. On startup, legacy global registrations are removed before the guild commands are synchronized, preventing duplicate commands from appearing. `npm run deploy` remains available for troubleshooting, but normal operation only requires `npm start`.
+When `DISCORD_GUILD_ID` is set, commands are registered directly in that server. Without it, the bot registers commands directly in every connected server. Both modes make new commands available immediately. On startup, legacy global registrations are removed before the guild commands are synchronized, preventing duplicate commands from appearing. Registration is retried three times and the bot refuses to continue with stale commands if every attempt fails. The startup log prints the complete registered command manifest; verify that it contains `/dev`. `npm run deploy` remains available for troubleshooting, but normal operation only requires `npm start`.
 
 The default JSON data file is `data/rotations.json`. Set `DATA_FILE` to use another persistent location. Keep that file on a durable volume in production.
 
@@ -81,7 +86,7 @@ State writes use a unique temporary file per operation and atomic replacement, i
 
 The runtime holds two five-second-heartbeat leases: `INSTANCE_LOCK_FILE` beside the data and a token-specific `BOT_TOKEN_LOCK_FILE` in the OS temporary directory. Together they stop duplicate processes that share either storage or a host, even when they use different working directories. Locks become recoverable 30 seconds after a crashed owner stops heartbeating; graceful shutdown removes them immediately. An in-memory interaction guard also ignores duplicate event delivery. Discord acknowledgement errors `40060` and `10062` are logged once without another response attempt.
 
-At startup, the current build prints `Runtime revision=interaction-lease-v3` with its PID. If interaction logs do not include both `pid=` and `interaction=`, the host is still running an older build and must be fully stopped and redeployed; the old stack traces shown above came from the pre-lease handler that called `ButtonInteraction.reply` directly.
+At startup, the current build prints `Runtime revision=interaction-sync-v4` with its PID. If interaction logs do not include both `pid=` and `interaction=`, the host is still running an older build and must be fully stopped and redeployed. A `10062` or `40060` response means another process connected with the same bot token won Discord's one-time acknowledgement; the losing process now records one concise diagnostic instead of logging an error stack or attempting another reply.
 
 ## Structure
 

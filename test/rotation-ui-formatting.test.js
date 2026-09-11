@@ -11,6 +11,7 @@ test('queue embed uses display names and relative signup times without raw menti
     names,
   ).toJSON();
   assert.equal(embed.title, 'Player Queue  •  OPEN ✅');
+  assert.equal(embed.fields[0].value, '1. **Player Name**\n\n└ Joined <t:123456:R>\n\n');
   assert.match(embed.fields[0].value, /Player Name.*<t:123456:R>/s);
   assert.doesNotMatch(embed.fields[0].value, /<@/);
 });

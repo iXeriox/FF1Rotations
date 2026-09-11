@@ -9,6 +9,7 @@ export function getConfig({ requireClientId = false } = {}) {
     throw new Error(`Missing required environment variables: ${missing.join(', ')}`);
   }
 
+  const dataFile = process.env.DATA_FILE ?? './data/rotations.json';
   return {
     token: process.env.DISCORD_TOKEN,
     clientId: process.env.DISCORD_CLIENT_ID,
@@ -17,6 +18,7 @@ export function getConfig({ requireClientId = false } = {}) {
     activisionIdsChannelId: process.env.ACTIVISION_IDS_CHANNEL_ID ?? '1530580498265538600',
     twitchClientId: process.env.TWITCH_CLIENT_ID,
     twitchClientSecret: process.env.TWITCH_CLIENT_SECRET,
-    dataFile: process.env.DATA_FILE ?? './data/rotations.json',
+    dataFile,
+    instanceLockFile: process.env.INSTANCE_LOCK_FILE ?? `${dataFile}.lock`,
   };
 }

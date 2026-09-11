@@ -11,8 +11,11 @@ import { checkTikTok, createTwitchProvider } from './services/stream-providers.j
 import { createStreamScanner } from './services/stream-scanner.js';
 import { createConsoleLogger } from './services/console-logger.js';
 import { announceCallOfDutyId } from './services/player-id-announcements.js';
+import { acquireInstanceLock } from './services/instance-lock.js';
+import { createInteractionGuard } from './services/interaction-guard.js';
 
 const config = getConfig();
+const releaseInstanceLock = await acquireInstanceLock(config.instanceLockFile);
 const store = new RotationStore(config.dataFile);
 await store.load();
 const rotationUi = createRotationUi(store);
@@ -33,6 +36,7 @@ const playerIdAnnouncements = {
     callOfDutyId,
   ),
 };
+const interactionGuard = createInteractionGuard();
 
 client.once(Events.ClientReady, async (readyClient) => {
   logger.system(`Ready as ${readyClient.user.tag}.`);
@@ -60,14 +64,29 @@ client.on(Events.GuildCreate, (guild) => {
   void syncCommands(client, commands, guild.id).catch((error) => console.error(`Could not register commands in ${guild.name}:`, error));
 });
 client.on(Events.InteractionCreate, (interaction) => {
+  if (!interactionGuard.claim(interaction.id)) {
+    logger.system(`Ignored duplicate interaction id=${interaction.id}.`);
+    return;
+  }
   void handleInteraction(interaction).catch(async (error) => {
     console.error(error);
+    if (error.code === 40060 || error.code === 10062) return;
     const response = { content: 'Something went wrong while running that command.', ephemeral: true };
     if (interaction.deferred) await interaction.editReply(response).catch(console.error);
     else if (interaction.replied) await interaction.followUp(response).catch(console.error);
     else await interaction.reply(response).catch(console.error);
   });
 });
+
+async function shutdown(signal) {
+  logger.system(`Received ${signal}; shutting down.`);
+  client.destroy();
+  await releaseInstanceLock();
+  process.exit(0);
+}
+
+process.once('SIGINT', () => void shutdown('SIGINT'));
+process.once('SIGTERM', () => void shutdown('SIGTERM'));
 
 async function handleInteraction(interaction) {
   if (!interaction.isChatInputCommand() && !interaction.isButton()) return;

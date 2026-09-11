@@ -12,6 +12,7 @@ const emptyGuild = () => ({
   birthdays: {},
   birthdayAnnouncements: {},
   streams: {},
+  streamNotificationChannelId: null,
   pairCounts: {},
   rounds: 0,
   ui: {},

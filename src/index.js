@@ -46,6 +46,7 @@ client.once(Events.ClientReady, async (readyClient) => {
 });
 client.on(Events.GuildCreate, (guild) => {
   void rotationUi.ensure(guild).catch((error) => console.error(`Could not set up ${guild.name}:`, error));
+  void syncCommands(client, commands, guild.id).catch((error) => console.error(`Could not register commands in ${guild.name}:`, error));
 });
 client.on(Events.InteractionCreate, (interaction) => {
   void handleInteraction(interaction).catch(async (error) => {

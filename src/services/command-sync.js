@@ -8,6 +8,7 @@ export async function syncCommands(client, commands, guildId) {
     return `Synced ${definitions.length} commands to ${guild.name}.`;
   }
 
-  await client.application.commands.set(definitions);
-  return `Synced ${definitions.length} global commands.`;
+  const guilds = [...client.guilds.cache.values()];
+  await Promise.all(guilds.map((guild) => guild.commands.set(definitions)));
+  return `Synced ${definitions.length} commands to ${guilds.length} guild${guilds.length === 1 ? '' : 's'}.`;
 }

@@ -10,7 +10,10 @@ export function createStreamScanner(client, store, providers) {
       for (const guildId of client.guilds.cache.keys()) {
         const state = store.get(guildId);
         for (const [key, stream] of Object.entries(state.streams)) {
-          checks.push(checkStream(guildId, key, stream));
+          checks.push(checkStream(guildId, key, {
+            ...stream,
+            channelId: state.streamNotificationChannelId ?? stream.channelId,
+          }));
         }
       }
       const results = await Promise.allSettled(checks);

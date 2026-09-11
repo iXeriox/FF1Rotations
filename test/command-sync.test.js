@@ -7,23 +7,28 @@ const commands = [
   { data: { toJSON: () => ({ name: 'group', description: 'Group.' }) } },
 ];
 
-test('syncs commands globally when no development guild is configured', async () => {
-  let received;
+test('syncs commands immediately to every connected guild by default', async () => {
+  const received = [];
   const client = {
-    application: { commands: { set: async (definitions) => { received = definitions; } } },
-    guilds: { fetch: async () => assert.fail('should not fetch a guild') },
+    guilds: {
+      cache: new Map([
+        ['one', { commands: { set: async (definitions) => received.push(['one', definitions]) } }],
+        ['two', { commands: { set: async (definitions) => received.push(['two', definitions]) } }],
+      ]),
+      fetch: async () => assert.fail('should not fetch a guild'),
+    },
   };
 
-  assert.equal(await syncCommands(client, commands), 'Synced 2 global commands.');
-  assert.deepEqual(received.map(({ name }) => name), ['join', 'group']);
+  assert.equal(await syncCommands(client, commands), 'Synced 2 commands to 2 guilds.');
+  assert.deepEqual(received.map(([guild]) => guild).sort(), ['one', 'two']);
+  assert.deepEqual(received[0][1].map(({ name }) => name), ['join', 'group']);
 });
 
 test('syncs commands immediately to the configured development guild', async () => {
   let received;
   const guild = { name: 'Test server', commands: { set: async (definitions) => { received = definitions; } } };
   const client = {
-    application: { commands: { set: async () => assert.fail('should not register globally') } },
-    guilds: { fetch: async (id) => {
+    guilds: { cache: new Map(), fetch: async (id) => {
       assert.equal(id, 'guild-id');
       return guild;
     } },

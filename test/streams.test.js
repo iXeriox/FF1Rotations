@@ -22,6 +22,30 @@ test('adds and removes a unique stream with its notification channel', () => {
   assert.match(removeStream(guild, 'tiktok', 'creator').message, /not being monitored/i);
 });
 
+test('scanner uses the guild-wide announcement channel over legacy per-stream channels', async () => {
+  const guildState = state();
+  guildState.streamNotificationChannelId = 'live-announcements';
+  addStream(guildState, 'tiktok', 'creator', 'old-channel');
+  let fetchedChannel;
+  const client = {
+    guilds: { cache: new Map([['guild', {}]]) },
+    channels: { fetch: async (channelId) => {
+      fetchedChannel = channelId;
+      return { isTextBased: () => true, send: async () => {} };
+    } },
+  };
+  const store = {
+    get: () => structuredClone(guildState),
+    update: async (_guildId, updater) => updater(guildState),
+  };
+  const scanner = createStreamScanner(client, store, {
+    tiktok: async () => ({ live: true, liveId: 'live', url: 'https://www.tiktok.com/@creator/live' }),
+  });
+
+  await scanner.scan();
+  assert.equal(fetchedChannel, 'live-announcements');
+});
+
 test('scanner announces only a new live transition and persists its state', async () => {
   const guildState = state();
   addStream(guildState, 'twitch', 'creator', 'channel');

@@ -21,7 +21,8 @@ A small, modular Discord.js bot for organising event rotations. Players opt in, 
 | `/birthday remove` | Everyone | Delete your saved birthday. |
 | `/birthday help` | Everyone | Explain the birthday commands. |
 | `/birthdays` | Everyone | Show upcoming birthdays without exposing birth years. |
-| `/stream add platform name` | Manage Server | Monitor a TikTok or Twitch user and post alerts in the current channel. |
+| `/stream channel channel` | Manage Server | Set the single channel used for all live announcements. |
+| `/stream add platform name` | Manage Server | Monitor a TikTok or Twitch user. |
 | `/stream remove platform name` | Manage Server | Stop monitoring a streamer. |
 | `/stream list` | Manage Server | Show monitored accounts and notification channels. |
 | `/stream help` | Manage Server | Explain setup and provider requirements. |
@@ -45,7 +46,7 @@ Birthday reminders are checked at startup and hourly. On a saved birthday, the b
 
 The bot's Discord status is refreshed hourly. It shows **Rotations: Active** whenever any waiting list is open; otherwise it displays the number of saved birthdays. Opening or closing rotations and adding or removing birthdays refreshes it immediately.
 
-Live accounts are scanned concurrently every two minutes using lightweight native HTTP requests. A transition to live posts `@everyone`, the streamer name, and a direct stream link in the channel where `/stream add` was used. Alert state is persisted, preventing duplicate messages after restarts. TikTok detection uses its public live page and may be affected by TikTok anti-bot changes; Twitch uses the official API and requires `TWITCH_CLIENT_ID` and `TWITCH_CLIENT_SECRET`. Provider checks are isolated behind adapters so more platforms can be added without changing commands or the scanner.
+Set the server's dedicated channel once with `/stream channel`, then add accounts. Live accounts are scanned concurrently every two minutes using lightweight native HTTP requests. A transition to live posts `@everyone`, the streamer name, and a direct stream link in that configured channel. The channel and alert state are persisted, preventing duplicate messages after restarts. TikTok detection uses its public live page and may be affected by TikTok anti-bot changes; Twitch uses the official API and requires `TWITCH_CLIENT_ID` and `TWITCH_CLIENT_SECRET`. Provider checks are isolated behind adapters so more platforms can be added without changing commands or the scanner.
 
 ## Setup
 
@@ -55,7 +56,7 @@ Live accounts are scanned concurrently every two minutes using lightweight nativ
 4. Invite the bot with the `bot` and `applications.commands` scopes. Grant it **Manage Channels**, **Manage Roles**, **View Channels**, **Send Messages**, and **Read Message History**. Keep the bot's role above the generated Rotation Leader role.
 5. Run `npm start`. The bot automatically registers or updates all slash commands whenever it connects.
 
-When `DISCORD_GUILD_ID` is set, commands are registered directly in that server and appear immediately. Without it, Discord registers them globally, which can take longer to become visible in every server. `npm run deploy` remains available for manual deployment if needed.
+When `DISCORD_GUILD_ID` is set, commands are registered directly in that server. Without it, the bot registers commands directly in every connected server. Both modes make new commands available immediately; `npm run deploy` remains available for manual global deployment if needed.
 
 The default JSON data file is `data/rotations.json`. Set `DATA_FILE` to use another persistent location. Keep that file on a durable volume in production.
 

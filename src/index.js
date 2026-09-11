@@ -69,8 +69,11 @@ client.on(Events.InteractionCreate, (interaction) => {
     return;
   }
   void handleInteraction(interaction).catch(async (error) => {
+    if (error.code === 40060 || error.code === 10062) {
+      logger.system(`Discord rejected acknowledgement for interaction id=${interaction.id} code=${error.code}; no retry was attempted.`);
+      return;
+    }
     console.error(error);
-    if (error.code === 40060 || error.code === 10062) return;
     const response = { content: 'Something went wrong while running that command.', ephemeral: true };
     if (interaction.deferred) await interaction.editReply(response).catch(console.error);
     else if (interaction.replied) await interaction.followUp(response).catch(console.error);

@@ -79,7 +79,7 @@ The default JSON data file is `data/rotations.json`. Set `DATA_FILE` to use anot
 
 State writes use a unique temporary file per operation and atomic replacement, including when more than one bot process accidentally targets the same data path. Button interactions are acknowledged before disk work begins so slow or failed storage cannot cause Discord's `Unknown interaction` or duplicate-acknowledgement errors.
 
-The runtime also holds an exclusive `INSTANCE_LOCK_FILE` (default: `./data/rotations.json.lock`). A second bot process exits with a clear error instead of connecting the same token twice and attempting to acknowledge every Discord interaction twice. Stale locks from stopped processes are recovered automatically, graceful shutdown removes the lock, and an in-memory interaction guard ignores any duplicate event delivery. Discord acknowledgement errors `40060` and `10062` are never answered a second time.
+The runtime also holds a leased `INSTANCE_LOCK_FILE` (default: `./data/rotations.json.lock`) with a five-second heartbeat. A fresh lock is respected even across isolated process/container namespaces, so a second bot process exits instead of connecting the same token and acknowledging every interaction twice. Locks become recoverable 30 seconds after a crashed owner stops heartbeating; graceful shutdown removes them immediately. An in-memory interaction guard also ignores duplicate event delivery. Discord acknowledgement errors `40060` and `10062` are logged once without another response attempt.
 
 ## Structure
 

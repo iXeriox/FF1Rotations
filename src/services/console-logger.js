@@ -5,7 +5,7 @@ function context(interaction) {
   const action = interaction.isChatInputCommand()
     ? `/${interaction.commandName}${subcommand ? ` ${subcommand}` : ''}`
     : `button:${interaction.customId}`;
-  return `action="${action}" user=${interaction.user.id} guild=${interaction.guildId ?? 'dm'} channel=${interaction.channelId ?? 'unknown'}`;
+  return `pid=${process.pid} interaction=${interaction.id ?? 'unknown'} action="${action}" user=${interaction.user.id} guild=${interaction.guildId ?? 'dm'} channel=${interaction.channelId ?? 'unknown'}`;
 }
 
 export function createConsoleLogger(output = console, now = () => new Date()) {

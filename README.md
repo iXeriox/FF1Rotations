@@ -21,6 +21,10 @@ A small, modular Discord.js bot for organising event rotations. Players opt in, 
 | `/birthday remove` | Everyone | Delete your saved birthday. |
 | `/birthday help` | Everyone | Explain the birthday commands. |
 | `/birthdays` | Everyone | Show upcoming birthdays without exposing birth years. |
+| `/stream add platform name` | Manage Server | Monitor a TikTok or Twitch user and post alerts in the current channel. |
+| `/stream remove platform name` | Manage Server | Stop monitoring a streamer. |
+| `/stream list` | Manage Server | Show monitored accounts and notification channels. |
+| `/stream help` | Manage Server | Explain setup and provider requirements. |
 
 On startup, the bot automatically creates a **Rotation Leader** role and a **Rotations** category containing:
 
@@ -40,6 +44,8 @@ Waiting lists start closed. An administrator must run `/open` before players can
 Birthday reminders are checked at startup and hourly. On a saved birthday, the bot posts a celebratory embed and mention in the configured birthdays channel exactly once that year. The default channel ID is `1545395897347612733`; set `BIRTHDAYS_CHANNEL_ID` to change it.
 
 The bot's Discord status is refreshed hourly. It shows **Rotations: Active** whenever any waiting list is open; otherwise it displays the number of saved birthdays. Opening or closing rotations and adding or removing birthdays refreshes it immediately.
+
+Live accounts are scanned concurrently every two minutes using lightweight native HTTP requests. A transition to live posts `@everyone`, the streamer name, and a direct stream link in the channel where `/stream add` was used. Alert state is persisted, preventing duplicate messages after restarts. TikTok detection uses its public live page and may be affected by TikTok anti-bot changes; Twitch uses the official API and requires `TWITCH_CLIENT_ID` and `TWITCH_CLIENT_SECRET`. Provider checks are isolated behind adapters so more platforms can be added without changing commands or the scanner.
 
 ## Setup
 

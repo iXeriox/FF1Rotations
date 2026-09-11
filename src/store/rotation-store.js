@@ -11,6 +11,7 @@ const emptyGuild = () => ({
   userStats: {},
   birthdays: {},
   birthdayAnnouncements: {},
+  streams: {},
   pairCounts: {},
   rounds: 0,
   ui: {},

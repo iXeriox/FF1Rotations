@@ -7,6 +7,8 @@ import { syncCommands } from './services/command-sync.js';
 import { joinWaitingList } from './services/waiting-list.js';
 import { sendBirthdayReminders } from './services/birthday-reminders.js';
 import { createBotStatus } from './services/bot-status.js';
+import { checkTikTok, createTwitchProvider } from './services/stream-providers.js';
+import { createStreamScanner } from './services/stream-scanner.js';
 
 const config = getConfig();
 const store = new RotationStore(config.dataFile);
@@ -16,6 +18,10 @@ const rotationUi = createRotationUi(store);
 const commandMap = new Map(commands.map((command) => [command.data.name, command]));
 const client = new Client({ intents: [GatewayIntentBits.Guilds] });
 const botStatus = createBotStatus(client, store);
+const streamScanner = createStreamScanner(client, store, {
+  tiktok: checkTikTok,
+  twitch: createTwitchProvider(config.twitchClientId, config.twitchClientSecret),
+});
 
 client.once(Events.ClientReady, async (readyClient) => {
   console.log(`Ready as ${readyClient.user.tag}.`);
@@ -34,6 +40,9 @@ client.once(Events.ClientReady, async (readyClient) => {
     void botStatus.refresh().catch(console.error);
   }, 60 * 60 * 1000);
   hourlyTimer.unref();
+  await streamScanner.scan();
+  const streamTimer = setInterval(() => void streamScanner.scan().catch(console.error), 2 * 60 * 1000);
+  streamTimer.unref();
 });
 client.on(Events.GuildCreate, (guild) => {
   void rotationUi.ensure(guild).catch((error) => console.error(`Could not set up ${guild.name}:`, error));
@@ -71,7 +80,7 @@ async function handleInteraction(interaction) {
   if (!interaction.isChatInputCommand()) return;
   const command = commandMap.get(interaction.commandName);
   if (!command) return;
-  await command.execute(interaction, { store, rotationUi, botStatus });
+  await command.execute(interaction, { store, rotationUi, botStatus, streamScanner });
 }
 
 await client.login(config.token);

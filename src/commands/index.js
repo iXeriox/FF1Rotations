@@ -11,7 +11,8 @@ import removeleader from './removeleader.js';
 import reset from './reset.js';
 import status from './status.js';
 import stats from './stats.js';
+import stream from './stream.js';
 
 export const commands = [
-  join, leave, open, close, addleader, removeleader, group, reset, status, commend, stats, birthday, birthdays,
+  join, leave, open, close, addleader, removeleader, group, reset, status, commend, stats, birthday, birthdays, stream,
 ];

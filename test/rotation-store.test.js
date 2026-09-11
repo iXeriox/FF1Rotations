@@ -17,6 +17,7 @@ test('persists isolated guild state', async () => {
     state.lastGroups = [['leader', 'player']];
     state.ui = { categoryId: 'category', joinChannelId: 'join-channel' };
     state.birthdays.player = { day: 11, month: 9, year: 1990 };
+    state.streams['twitch:player'] = { platform: 'twitch', name: 'player', channelId: 'alerts', isLive: false };
   });
 
   const reloaded = new RotationStore(file);
@@ -27,6 +28,7 @@ test('persists isolated guild state', async () => {
   assert.deepEqual(reloaded.get('guild-a').lastGroups, [['leader', 'player']]);
   assert.equal(reloaded.get('guild-a').ui.categoryId, 'category');
   assert.deepEqual(reloaded.get('guild-a').birthdays.player, { day: 11, month: 9, year: 1990 });
+  assert.equal(reloaded.get('guild-a').streams['twitch:player'].channelId, 'alerts');
   assert.deepEqual(reloaded.get('guild-b').players, []);
   const contents = await readFile(file, 'utf8');
   assert.doesNotThrow(() => JSON.parse(contents));

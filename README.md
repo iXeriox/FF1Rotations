@@ -33,6 +33,8 @@ On startup, the bot automatically creates a **Rotation Leader** role and a **Rot
 - **#join-rotation** — visible to everyone but read-only, with an embed and button for joining the waiting list. The embed lists queued players in order with Discord-relative wait times, while button confirmations are private.
 - **#grouping** — visible to everyone but read-only. Its placeholder embed is replaced with one team embed per leader after `/group`.
 
+Both rotation views use resolved server display names rather than raw Discord mention tokens, so names render consistently on desktop and mobile. The queue uses a numbered, timestamped signup order; grouping uses a polished squad card per leader with a clearly separated leader, roster, and four-player capacity.
+
 The IDs of the generated role, category, channels, and messages are persisted. On restart the bot restores those exact resources, moves its channels back under the Rotations category if necessary, and refreshes both embeds from stored state. It never adopts or overwrites unrelated channels merely because they have the same name; if a managed resource is deleted, the bot creates a replacement.
 
 Leaders are included automatically and never need to join the player queue. After `/group`, all player signups and leaders are cleared and leader roles are removed, ready for the next rotation. Only the immediately previous game's teammate pairings are retained, so the next grouping avoids repeats where possible without permanently penalising older matches. `/reset history:true` can also forget that last game.
@@ -48,6 +50,8 @@ Administrators can use `/addplayer user` to add somebody on their behalf while t
 Birthday reminders are checked at startup and hourly. On a saved birthday, the bot posts a celebratory embed and mention in the configured birthdays channel exactly once that year. The default channel ID is `1545395897347612733`; set `BIRTHDAYS_CHANNEL_ID` to change it.
 
 The bot's Discord status is refreshed hourly. It shows **Rotations: Active** whenever any waiting list is open; otherwise it displays the number of saved birthdays. Opening or closing rotations and adding or removing birthdays refreshes it immediately.
+
+Command and button usage is logged to the console with an ISO timestamp, action/subcommand, user, guild, channel, outcome, and execution time. Failed interactions include the error message, while command option values are deliberately excluded so birthdays and other user-provided values are not leaked into logs.
 
 Set the server's dedicated channel once with `/stream channel`, then add accounts. Live accounts are scanned concurrently every two minutes using lightweight native HTTP requests. A transition to live posts `@everyone`, the streamer name, and a direct stream link in that configured channel. The channel and alert state are persisted, preventing duplicate messages after restarts. TikTok detection uses its public live page and may be affected by TikTok anti-bot changes; Twitch uses the official API and requires `TWITCH_CLIENT_ID` and `TWITCH_CLIENT_SECRET`. Provider checks are isolated behind adapters so more platforms can be added without changing commands or the scanner.
 

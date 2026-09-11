@@ -9,6 +9,7 @@ import { sendBirthdayReminders } from './services/birthday-reminders.js';
 import { createBotStatus } from './services/bot-status.js';
 import { checkTikTok, createTwitchProvider } from './services/stream-providers.js';
 import { createStreamScanner } from './services/stream-scanner.js';
+import { createConsoleLogger } from './services/console-logger.js';
 
 const config = getConfig();
 const store = new RotationStore(config.dataFile);
@@ -22,11 +23,12 @@ const streamScanner = createStreamScanner(client, store, {
   tiktok: checkTikTok,
   twitch: createTwitchProvider(config.twitchClientId, config.twitchClientSecret),
 });
+const logger = createConsoleLogger();
 
 client.once(Events.ClientReady, async (readyClient) => {
-  console.log(`Ready as ${readyClient.user.tag}.`);
+  logger.system(`Ready as ${readyClient.user.tag}.`);
   try {
-    console.log(await syncCommands(readyClient, commands, config.guildId));
+    logger.system(await syncCommands(readyClient, commands, config.guildId));
   } catch (error) {
     console.error('Could not register slash commands:', error);
   }
@@ -59,6 +61,19 @@ client.on(Events.InteractionCreate, (interaction) => {
 });
 
 async function handleInteraction(interaction) {
+  if (!interaction.isChatInputCommand() && !interaction.isButton()) return;
+  const startedAt = performance.now();
+  logger.interactionStarted(interaction);
+  try {
+    await dispatchInteraction(interaction);
+    logger.interactionCompleted(interaction, performance.now() - startedAt);
+  } catch (error) {
+    logger.interactionFailed(interaction, performance.now() - startedAt, error);
+    throw error;
+  }
+}
+
+async function dispatchInteraction(interaction) {
   if (interaction.isButton() && interaction.customId === JOIN_BUTTON_ID) {
     const state = store.get(interaction.guildId);
     if (!state.waitingOpen) {

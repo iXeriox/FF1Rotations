@@ -5,19 +5,20 @@ import {
   ChannelType,
   EmbedBuilder,
   PermissionFlagsBits,
+  escapeMarkdown,
 } from 'discord.js';
-import { mention } from '../commands/helpers.js';
 
 export const JOIN_BUTTON_ID = 'rotation:join';
 
-function waitingFields(state) {
+function waitingFields(state, displayNames) {
   if (!state.players.length) return [{ name: 'Waiting (0)', value: '_Nobody is waiting yet._' }];
   const fields = [];
   let value = '';
   let displayed = 0;
   for (const [index, userId] of state.players.entries()) {
     const queuedAt = state.playerQueuedAt?.[userId];
-    const line = `${index + 1}. ${mention(userId)} • ${queuedAt ? `<t:${queuedAt}:R>` : '_time unavailable_'}\n`;
+    const name = displayNames.get(userId) ?? 'Unknown member';
+    const line = `**${index + 1}. ${name}**\n└ Joined ${queuedAt ? `<t:${queuedAt}:R>` : '_before time tracking_'}\n`;
     if (value.length + line.length > 900) {
       fields.push({ name: fields.length ? 'Waiting — continued' : `Waiting (${state.players.length})`, value });
       value = '';
@@ -33,14 +34,20 @@ function waitingFields(state) {
   return fields;
 }
 
-const waitingEmbed = (state) => new EmbedBuilder()
-  .setColor(state.waitingOpen ? 0x57f287 : 0xed4245)
-  .setTitle(`Rotation waiting list — ${state.waitingOpen ? 'OPEN' : 'CLOSED'}`)
-  .setDescription(state.waitingOpen
-    ? 'Press **Join rotation** below to enter the waiting list. Leaders are included automatically and do not need to join.'
-    : 'Signups are not currently running. An administrator will open the waiting list before the next rotation.')
-  .addFields(waitingFields(state))
-  .setFooter({ text: `${state.players.length} waiting • Times update automatically when the list changes` });
+export function waitingEmbed(guild, state, displayNames) {
+  const embed = new EmbedBuilder()
+    .setColor(state.waitingOpen ? 0x57f287 : 0xed4245)
+    .setTitle(`Player Queue  •  ${state.waitingOpen ? 'OPEN ✅' : 'CLOSED 🔒'}`)
+    .setDescription(state.waitingOpen
+      ? 'Use the button below to reserve your place in the next rotation. Rotation Leaders are included automatically.'
+      : 'The next rotation is not accepting players yet. This page will update when an administrator opens signups.')
+    .addFields(waitingFields(state, displayNames))
+    .setFooter({ text: `${state.players.length} player${state.players.length === 1 ? '' : 's'} waiting  •  Listed in signup order` })
+    .setTimestamp();
+  const iconURL = guild.iconURL();
+  embed.setAuthor({ name: `${guild.name}  •  Rotations`, ...(iconURL ? { iconURL } : {}) });
+  return embed;
+}
 
 const joinComponents = (waitingOpen) => [new ActionRowBuilder().addComponents(
   new ButtonBuilder().setCustomId(JOIN_BUTTON_ID).setLabel(waitingOpen ? 'Join rotation' : 'Waiting list closed')
@@ -52,10 +59,35 @@ const groupingPlaceholder = () => new EmbedBuilder()
   .setTitle('Rotation groups')
   .setDescription('No groups have been generated yet. An administrator can use `/group` when everyone is ready.');
 
-const groupEmbeds = (groups) => groups.map((group, index) => new EmbedBuilder()
-  .setColor(0x57f287)
-  .setTitle(`Team ${index + 1}`)
-  .setDescription(`**Leader:** ${mention(group[0])}\n\n**Players**\n${group.length > 1 ? group.slice(1).map(mention).join('\n') : '_No players assigned_'}`));
+const squadIcons = ['1️⃣', '2️⃣', '3️⃣'];
+
+export const groupEmbeds = (groups, displayNames) => groups.map((group, index) => {
+  const leader = displayNames.get(group[0]) ?? 'Unknown member';
+  const players = group.slice(1);
+  return new EmbedBuilder()
+    .setColor(0x5865f2)
+    .setTitle(`SQUAD ${String(index + 1).padStart(2, '0')}`)
+    .setDescription('Your team for the latest Call of Duty rotation.')
+    .addFields(
+      { name: '👑  TEAM LEADER', value: `**${leader}**` },
+      {
+        name: '🎮  SQUAD MEMBERS',
+        value: players.length
+          ? players.map((userId, playerIndex) => `${squadIcons[playerIndex] ?? '•'}  **${displayNames.get(userId) ?? 'Unknown member'}**`).join('\n')
+          : '_No additional players assigned._',
+      },
+    )
+    .setFooter({ text: `${group.length} / 4 members  •  Squad ${index + 1} of ${groups.length}` });
+});
+
+async function resolveDisplayNames(guild, userIds) {
+  const entries = await Promise.all([...new Set(userIds)].map(async (userId) => {
+    const member = guild.members.cache.get(userId) ?? await guild.members.fetch(userId).catch(() => null);
+    const name = member?.displayName ?? member?.user?.username ?? 'Unknown member';
+    return [userId, escapeMarkdown(name)];
+  }));
+  return new Map(entries);
+}
 
 async function getMessage(channel, messageId) {
   if (!messageId) return null;
@@ -134,14 +166,15 @@ export function createRotationUi(store) {
     }
 
     let joinMessage = await getMessage(joinChannel, current.ui.joinMessageId);
-    joinMessage ??= await joinChannel.send({ embeds: [waitingEmbed(current)], components: joinComponents(current.waitingOpen) });
+    const displayNames = await resolveDisplayNames(guild, [...current.players, ...current.lastGroups.flat()]);
+    joinMessage ??= await joinChannel.send({ embeds: [waitingEmbed(guild, current, displayNames)], components: joinComponents(current.waitingOpen) });
     let groupingMessage = await getMessage(groupingChannel, current.ui.groupingMessageId);
-    const currentGroupEmbeds = groupEmbeds(current.lastGroups);
+    const currentGroupEmbeds = groupEmbeds(current.lastGroups, displayNames);
     groupingMessage ??= await groupingChannel.send({
       embeds: currentGroupEmbeds.length ? currentGroupEmbeds.slice(0, 10) : [groupingPlaceholder()],
     });
 
-    await joinMessage.edit({ embeds: [waitingEmbed(current)], components: joinComponents(current.waitingOpen) });
+    await joinMessage.edit({ embeds: [waitingEmbed(guild, current, displayNames)], components: joinComponents(current.waitingOpen) });
     await groupingMessage.edit({
       content: currentGroupEmbeds.length ? 'Latest rotation groups' : null,
       embeds: currentGroupEmbeds.length ? currentGroupEmbeds.slice(0, 10) : [groupingPlaceholder()],
@@ -171,12 +204,14 @@ export function createRotationUi(store) {
   async function refreshWaiting(guild) {
     const ui = await ensure(guild);
     const state = store.get(guild.id);
-    await ui.joinMessage.edit({ embeds: [waitingEmbed(state)], components: joinComponents(state.waitingOpen) });
+    const displayNames = await resolveDisplayNames(guild, state.players);
+    await ui.joinMessage.edit({ embeds: [waitingEmbed(guild, state, displayNames)], components: joinComponents(state.waitingOpen) });
   }
 
   async function publishGroups(guild, groups) {
     const ui = await ensure(guild);
-    const embeds = groupEmbeds(groups);
+    const displayNames = await resolveDisplayNames(guild, groups.flat());
+    const embeds = groupEmbeds(groups, displayNames);
     await ui.groupingMessage.edit({
       content: `Groups generated <t:${Math.floor(Date.now() / 1000)}:R>`,
       embeds: embeds.slice(0, 10),

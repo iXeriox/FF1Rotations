@@ -78,7 +78,7 @@ Set the server's dedicated channel once with `/stream channel`, then add account
 4. Invite the bot with the `bot` and `applications.commands` scopes. Grant it **Manage Channels**, **Manage Roles**, **View Channels**, **Send Messages**, and **Read Message History**. Keep the bot's role above the generated Rotation Leader role.
 5. Run `npm start`. The bot automatically registers or updates all slash commands whenever it connects.
 
-When `DISCORD_GUILD_ID` is set, commands are registered directly in that server. Without it, the bot registers commands directly in every connected server. Both modes make new commands available immediately. On startup, legacy global registrations are removed before the guild commands are synchronized, preventing duplicate commands from appearing. `npm run deploy` remains available for troubleshooting, but normal operation only requires `npm start`.
+When `DISCORD_GUILD_ID` is set, commands are registered directly in that server. Without it, the bot registers commands directly in every connected server. Both modes make new commands available immediately. On startup, legacy global registrations are removed before the guild commands are synchronized, preventing duplicate commands from appearing. Registration is retried three times and the bot refuses to continue with stale commands if every attempt fails. The startup log prints the complete registered command manifest; verify that it contains `/dev`. `npm run deploy` remains available for troubleshooting, but normal operation only requires `npm start`.
 
 The default JSON data file is `data/rotations.json`. Set `DATA_FILE` to use another persistent location. Keep that file on a durable volume in production.
 
@@ -86,7 +86,7 @@ State writes use a unique temporary file per operation and atomic replacement, i
 
 The runtime holds two five-second-heartbeat leases: `INSTANCE_LOCK_FILE` beside the data and a token-specific `BOT_TOKEN_LOCK_FILE` in the OS temporary directory. Together they stop duplicate processes that share either storage or a host, even when they use different working directories. Locks become recoverable 30 seconds after a crashed owner stops heartbeating; graceful shutdown removes them immediately. An in-memory interaction guard also ignores duplicate event delivery. Discord acknowledgement errors `40060` and `10062` are logged once without another response attempt.
 
-At startup, the current build prints `Runtime revision=interaction-lease-v3` with its PID. If interaction logs do not include both `pid=` and `interaction=`, the host is still running an older build and must be fully stopped and redeployed; the old stack traces shown above came from the pre-lease handler that called `ButtonInteraction.reply` directly.
+At startup, the current build prints `Runtime revision=interaction-sync-v4` with its PID. If interaction logs do not include both `pid=` and `interaction=`, the host is still running an older build and must be fully stopped and redeployed. A `10062` or `40060` response means another process connected with the same bot token won Discord's one-time acknowledgement; the losing process now records one concise diagnostic instead of logging an error stack or attempting another reply.
 
 ## Structure
 

@@ -93,6 +93,22 @@ async function resolveDisplayNames(guild, userIds) {
   return new Map(entries);
 }
 
+export async function removeRoleFromAllMembers(guild, role, fallbackIds = []) {
+  const fetchedMembers = await guild.members.fetch().catch(() => null);
+  const fetchedRoleMembers = fetchedMembers
+    ? [...fetchedMembers.values()].filter((member) => member.roles.cache.has(role.id)).map((member) => member.id)
+    : [];
+  const memberIds = new Set([...fallbackIds, ...role.members.keys(), ...fetchedRoleMembers]);
+  const removed = await Promise.all([...memberIds].map(async (memberId) => {
+    const member = fetchedMembers?.get(memberId)
+      ?? await guild.members.fetch(memberId).catch(() => null);
+    if (!member?.roles.cache.has(role.id)) return false;
+    await member.roles.remove(role, 'Rotation leaders reset');
+    return true;
+  }));
+  return removed.filter(Boolean).length;
+}
+
 async function getMessage(channel, messageId) {
   if (!messageId) return null;
   return channel.messages.fetch(messageId).catch(() => null);
@@ -240,16 +256,9 @@ export function createRotationUi(store) {
 
   async function clearLeaderRoles(guild, leaderIds) {
     const { leaderRole } = await ensure(guild);
-    const knownLeaderIds = new Set([...leaderIds, ...leaderRole.members.keys()]);
-    const removed = await Promise.all([...knownLeaderIds].map(async (memberId) => {
-      const member = await guild.members.fetch(memberId).catch(() => null);
-      if (member?.roles.cache.has(leaderRole.id)) {
-        await member.roles.remove(leaderRole, 'Rotation completed');
-        return true;
-      }
-      return false;
-    }));
-    return removed.filter(Boolean).length;
+    // Fetch the complete member list instead of relying on the role cache. This
+    // also removes the role from leaders that are absent from persisted state.
+    return removeRoleFromAllMembers(guild, leaderRole, leaderIds);
   }
 
   return { ensure, publishGroups, refreshWaiting, refreshGroups, resetGroups, clearLeaderRoles };

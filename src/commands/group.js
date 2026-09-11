@@ -27,7 +27,9 @@ export default {
       latest.waitingOpen = false;
       recordRotation(latest, groups);
     });
-    await rotationUi.publishGroups(interaction.guild, groups);
+    // Render from the persisted latest rotation so /lobby can subsequently
+    // update the same cards, even after the temporary leader roles are reset.
+    await rotationUi.refreshGroups(interaction.guild);
     await rotationUi.refreshWaiting(interaction.guild);
     await botStatus.refresh();
     const output = groups.map((group, index) => `**Team ${index + 1}:** ${group.map(mention).join(', ')}`).join('\n');

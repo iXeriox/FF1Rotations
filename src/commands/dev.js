@@ -35,12 +35,15 @@ data = subcommand(data, 'reset-waiting', 'Remove every player from the waiting l
 data = subcommand(data, 'open', 'Open the waiting list.');
 data = subcommand(data, 'close', 'Close the waiting list.');
 data = subcommand(data, 'clear-leaders', 'Clear saved leaders and remove every Rotation Leader role.');
+data = subcommand(data, 'clear-grouping', 'Clear the grouping channel and restore its placeholder.');
 data = subcommand(data, 'waiting-list', 'Show the current waiting list.');
 data = subcommand(data, 'leader-list', 'Show the current saved leader list.');
 data = subcommand(data, 'previous-game', 'Show teams from the previous game.');
 data.addSubcommandGroup((group) => group.setName('add').setDescription('Add generated test members.')
   .addSubcommand((option) => option.setName('randomuser').setDescription('Add a randomly named mock player.'))
   .addSubcommand((option) => option.setName('randomleader').setDescription('Add a randomly named mock leader.')));
+data.addSubcommandGroup((group) => group.setName('reset').setDescription('Rebuild a managed rotation page.')
+  .addSubcommand((option) => option.setName('join-rotation').setDescription('Clear the join channel and regenerate its queue panel.')));
 
 export default {
   data,
@@ -59,6 +62,18 @@ export default {
       await store.update(interaction.guildId, (state) => { mock = createMockUser(state, action); });
       await rotationUi.refreshWaiting(interaction.guild);
       await interaction.editReply(`Added mock ${action === 'randomleader' ? 'leader' : 'player'} **${mock.name}** for testing.`);
+      return;
+    }
+
+    if (actionGroup === 'reset') {
+      const deleted = await rotationUi.resetJoinChannel(interaction.guild);
+      await interaction.editReply(`Rebuilt the join-rotation page after clearing ${deleted} message${deleted === 1 ? '' : 's'}.`);
+      return;
+    }
+
+    if (action === 'clear-grouping') {
+      const deleted = await rotationUi.resetGroupingChannel(interaction.guild);
+      await interaction.editReply(`Reset the grouping page after clearing ${deleted} message${deleted === 1 ? '' : 's'}.`);
       return;
     }
 

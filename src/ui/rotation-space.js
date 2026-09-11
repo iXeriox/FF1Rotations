@@ -127,6 +127,23 @@ async function getMessage(channel, messageId) {
   return channel.messages.fetch(messageId).catch(() => null);
 }
 
+async function clearRecentMessages(channel) {
+  let deleted = 0;
+  let before;
+  while (true) {
+    const messages = await channel.messages.fetch({ limit: 100, ...(before ? { before } : {}) });
+    const page = [...messages.values()];
+    if (!page.length) break;
+    before = page.at(-1).id;
+    const results = await Promise.all(page.map((message) => message.delete()
+      .then(() => true)
+      .catch(() => false)));
+    deleted += results.filter(Boolean).length;
+    if (page.length < 100) break;
+  }
+  return deleted;
+}
+
 async function findOrCreateChannel(guild, savedId, name, options) {
   const saved = savedId ? await guild.channels.fetch(savedId).catch(() => null) : null;
   if (saved?.type === ChannelType.GuildText) {
@@ -263,6 +280,33 @@ export function createRotationUi(store) {
     await store.update(guild.id, (state) => { state.ui.groupMessageIds = []; });
   }
 
+  async function resetJoinChannel(guild) {
+    const { joinChannel } = await ensure(guild);
+    const deleted = await clearRecentMessages(joinChannel);
+    const state = store.get(guild.id);
+    const displayNames = await resolveDisplayNames(guild, state.players, state.mockUsers);
+    const joinMessage = await joinChannel.send({
+      embeds: [waitingEmbed(guild, state, displayNames)],
+      components: joinComponents(state.waitingOpen),
+    });
+    await store.update(guild.id, (latest) => { latest.ui.joinMessageId = joinMessage.id; });
+    return deleted;
+  }
+
+  async function resetGroupingChannel(guild) {
+    const { groupingChannel } = await ensure(guild);
+    const deleted = await clearRecentMessages(groupingChannel);
+    const groupingMessage = await groupingChannel.send({ embeds: [groupingPlaceholder()] });
+    await store.update(guild.id, (state) => {
+      state.ui.groupingMessageId = groupingMessage.id;
+      state.ui.groupMessageIds = [];
+      state.lastGroups = [];
+      state.lobbyCodes = {};
+      state.commendationsBy = [];
+    });
+    return deleted;
+  }
+
   async function refreshGroups(guild) {
     await ensure(guild);
   }
@@ -280,6 +324,14 @@ export function createRotationUi(store) {
   }
 
   return {
-    ensure, publishGroups, refreshWaiting, refreshGroups, resetGroups, clearLeaderRoles, clearLeaderRolesDetailed,
+    ensure,
+    publishGroups,
+    refreshWaiting,
+    refreshGroups,
+    resetGroups,
+    resetJoinChannel,
+    resetGroupingChannel,
+    clearLeaderRoles,
+    clearLeaderRolesDetailed,
   };
 }

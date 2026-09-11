@@ -59,6 +59,30 @@ test('/dev add randomleader creates a named mock leader', async () => {
   assert.ok(state.mockUsers[state.leaders[0]]);
 });
 
+test('/dev reset join-rotation rebuilds the managed queue page', async () => {
+  const interaction = interactionFor(DEVELOPER_USER_ID, 'join-rotation', 'reset');
+  let resetGuild;
+  await dev.execute(interaction, {
+    store: {},
+    rotationUi: { resetJoinChannel: async (guild) => { resetGuild = guild; return 3; } },
+    botStatus: {},
+  });
+  assert.equal(resetGuild, interaction.guild);
+  assert.match(interaction.replies.at(-1), /clearing 3 messages/i);
+});
+
+test('/dev clear-grouping rebuilds the grouping placeholder', async () => {
+  const interaction = interactionFor(DEVELOPER_USER_ID, 'clear-grouping');
+  let resetGuild;
+  await dev.execute(interaction, {
+    store: {},
+    rotationUi: { resetGroupingChannel: async (guild) => { resetGuild = guild; return 2; } },
+    botStatus: {},
+  });
+  assert.equal(resetGuild, interaction.guild);
+  assert.match(interaction.replies.at(-1), /clearing 2 messages/i);
+});
+
 test('/dev open changes and refreshes the waiting list', async () => {
   const state = { waitingOpen: false, players: [], leaders: [], playerQueuedAt: {}, lastGroups: [] };
   const interaction = interactionFor(DEVELOPER_USER_ID, 'open');

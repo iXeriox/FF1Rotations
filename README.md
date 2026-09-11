@@ -32,6 +32,8 @@ A small, modular Discord.js bot for organising event rotations. Players opt in, 
 | `/dev ...` | Bot developer only | Private rotation controls and diagnostic lists. |
 | `/dev add randomuser` | Bot developer only | Add a randomly named mock player for testing. |
 | `/dev add randomleader` | Bot developer only | Add a randomly named mock leader for testing. |
+| `/dev reset join-rotation` | Bot developer only | Clear the join channel and regenerate its live queue panel. |
+| `/dev clear-grouping` | Bot developer only | Clear the grouping channel and restore its placeholder. |
 
 On startup, the bot automatically creates a **Rotation Leader** role and a **Rotations** category containing:
 

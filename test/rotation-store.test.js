@@ -19,6 +19,7 @@ test('persists isolated guild state', async () => {
     state.birthdays.player = { day: 11, month: 9, year: 1990 };
     state.streams['twitch:player'] = { platform: 'twitch', name: 'player', channelId: 'alerts', isLive: false };
     state.streamNotificationChannelId = 'live-announcements';
+    state.callOfDutyIds.player = 'Player#1234567';
   });
 
   const reloaded = new RotationStore(file);
@@ -31,6 +32,7 @@ test('persists isolated guild state', async () => {
   assert.deepEqual(reloaded.get('guild-a').birthdays.player, { day: 11, month: 9, year: 1990 });
   assert.equal(reloaded.get('guild-a').streams['twitch:player'].channelId, 'alerts');
   assert.equal(reloaded.get('guild-a').streamNotificationChannelId, 'live-announcements');
+  assert.equal(reloaded.get('guild-a').callOfDutyIds.player, 'Player#1234567');
   assert.deepEqual(reloaded.get('guild-b').players, []);
   const contents = await readFile(file, 'utf8');
   assert.doesNotThrow(() => JSON.parse(contents));

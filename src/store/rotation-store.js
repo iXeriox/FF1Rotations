@@ -9,6 +9,7 @@ const emptyGuild = () => ({
   lastGroups: [],
   commendationsBy: [],
   userStats: {},
+  callOfDutyIds: {},
   birthdays: {},
   birthdayAnnouncements: {},
   streams: {},

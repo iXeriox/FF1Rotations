@@ -10,6 +10,7 @@ import { createBotStatus } from './services/bot-status.js';
 import { checkTikTok, createTwitchProvider } from './services/stream-providers.js';
 import { createStreamScanner } from './services/stream-scanner.js';
 import { createConsoleLogger } from './services/console-logger.js';
+import { announceCallOfDutyId } from './services/player-id-announcements.js';
 
 const config = getConfig();
 const store = new RotationStore(config.dataFile);
@@ -24,6 +25,14 @@ const streamScanner = createStreamScanner(client, store, {
   twitch: createTwitchProvider(config.twitchClientId, config.twitchClientSecret),
 });
 const logger = createConsoleLogger();
+const playerIdAnnouncements = {
+  send: (user, callOfDutyId) => announceCallOfDutyId(
+    client,
+    config.activisionIdsChannelId,
+    user,
+    callOfDutyId,
+  ),
+};
 
 client.once(Events.ClientReady, async (readyClient) => {
   logger.system(`Ready as ${readyClient.user.tag}.`);
@@ -96,7 +105,9 @@ async function dispatchInteraction(interaction) {
   if (!interaction.isChatInputCommand()) return;
   const command = commandMap.get(interaction.commandName);
   if (!command) return;
-  await command.execute(interaction, { store, rotationUi, botStatus, streamScanner });
+  await command.execute(interaction, {
+    store, rotationUi, botStatus, streamScanner, playerIdAnnouncements,
+  });
 }
 
 await client.login(config.token);

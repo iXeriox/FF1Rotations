@@ -18,6 +18,7 @@ A small, modular Discord.js bot for organising event rotations. Players opt in, 
 | `/reset [history]` | Manage Server | Clear signups, optionally also clearing match history. |
 | `/commend user` | Everyone | Give one commendation to a teammate from the latest rotation. |
 | `/stats user` | Everyone | Show commendations, rotation count, and last rotation time. |
+| `/id id` | Everyone | Add or update your Call of Duty ID for `/stats`. |
 | `/birthday add day month year` | Everyone | Add or update your birthday reminder. |
 | `/birthday remove` | Everyone | Delete your saved birthday. |
 | `/birthday help` | Everyone | Explain the birthday commands. |
@@ -33,7 +34,7 @@ On startup, the bot automatically creates a **Rotation Leader** role and a **Rot
 - **#join-rotation** — visible to everyone but read-only, with an embed and button for joining the waiting list. The embed lists queued players in order with Discord-relative wait times, while button confirmations are private.
 - **#grouping** — visible to everyone but read-only. Its placeholder embed is replaced with one team embed per leader after `/group`.
 
-Both rotation views use resolved server display names rather than raw Discord mention tokens, so names render consistently on desktop and mobile. The queue uses a numbered, timestamped signup order; grouping uses a polished squad card per leader with a clearly separated leader, roster, and four-player capacity.
+Both rotation views use resolved server display names rather than raw Discord mention tokens, so names render consistently on desktop and mobile. Each queue entry displays its number and bold player name on the first line, followed by a cleanly separated relative join time. Grouping uses a polished squad card per leader with a clearly separated leader, roster, and four-player capacity.
 
 The IDs of the generated role, category, channels, and messages are persisted. On restart the bot restores those exact resources, moves its channels back under the Rotations category if necessary, and refreshes both embeds from stored state. It never adopts or overwrites unrelated channels merely because they have the same name; if a managed resource is deleted, the bot creates a replacement.
 
@@ -42,6 +43,10 @@ Leaders are included automatically and never need to join the player queue. Afte
 Every generated Call of Duty team is capped at four members, including its leader. Each leader therefore supports up to three waiting players. If there are not enough leaders, `/group` explains how many are required and leaves the current signup list untouched.
 
 Each participant may use `/commend` once after a rotation, and the recipient must have been on that participant's latest team. Commendations and participation statistics are retained across rotations and bot restarts.
+
+Use `/id id:iXeriox#6447986` to save a Call of Duty ID. Whitespace is removed automatically, and the ID is displayed whenever another member selects that Discord user with `/stats`.
+
+Every successful `/id` update also posts a professional announcement mentioning the member in channel `1530580498265538600`. Set `ACTIVISION_IDS_CHANNEL_ID` to use a different channel; if that channel is unavailable, the ID is still saved and the member receives a warning.
 
 Waiting lists start closed. An administrator must run `/open` before players can join through either the button or `/join`. `/close` prevents new signups without removing anyone already waiting; players can still use `/leave`. Completing `/group` or using `/reset` closes the list automatically.
 

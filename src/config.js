@@ -14,6 +14,7 @@ export function getConfig({ requireClientId = false } = {}) {
     clientId: process.env.DISCORD_CLIENT_ID,
     guildId: process.env.DISCORD_GUILD_ID,
     birthdaysChannelId: process.env.BIRTHDAYS_CHANNEL_ID ?? '1545395897347612733',
+    activisionIdsChannelId: process.env.ACTIVISION_IDS_CHANNEL_ID ?? '1530580498265538600',
     twitchClientId: process.env.TWITCH_CLIENT_ID,
     twitchClientSecret: process.env.TWITCH_CLIENT_SECRET,
     dataFile: process.env.DATA_FILE ?? './data/rotations.json',

@@ -24,6 +24,7 @@ export default {
       latest.players = [];
       latest.playerQueuedAt = {};
       latest.leaders = [];
+      latest.mockUsers = {};
       latest.waitingOpen = false;
       recordRotation(latest, groups);
     });

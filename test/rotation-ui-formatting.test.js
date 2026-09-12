@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
-  createGuildOperationQueue, groupEmbeds, replaceGroupingChannel, waitingEmbed,
+  clearGroupingChannel, createGuildOperationQueue, groupEmbeds, waitingEmbed,
 } from '../src/ui/rotation-space.js';
 
 const names = new Map([['leader-id', 'Leader Name'], ['player-id', 'Player Name']]);
@@ -38,30 +38,28 @@ test('group cards show the code submitted by their own leader', () => {
   assert.equal(embed.fields[1].value, '**JOIN-123**');
 });
 
-test('grouping reset replaces the entire channel and posts one fresh placeholder', async () => {
-  const calls = [];
+test('grouping reset deletes every page of chat history and posts one fresh placeholder', async () => {
+  const deleted = [];
   let sent;
-  const replacement = {
-    id: 'new-channel',
-    setPosition: async (position) => calls.push(['position', position]),
+  const firstPage = Array.from({ length: 100 }, (_, index) => ({
+    id: `message-${index}`,
+    delete: async () => deleted.push(`message-${index}`),
+  }));
+  const finalMessage = { id: 'oldest', delete: async () => deleted.push('oldest') };
+  const channel = {
+    id: 'same-channel',
+    messages: { fetch: async ({ before }) => new Map(
+      (before ? [finalMessage] : firstPage).map((message) => [message.id, message]),
+    ) },
     send: async (payload) => {
       sent = payload;
       return { id: 'new-message' };
     },
   };
-  const channel = {
-    position: 4,
-    clone: async () => {
-      calls.push(['clone']);
-      return replacement;
-    },
-    delete: async () => calls.push(['delete']),
-  };
 
-  const result = await replaceGroupingChannel(channel);
-  assert.deepEqual(calls, [['clone'], ['position', 4], ['delete']]);
-  assert.equal(result.channel.id, 'new-channel');
-  assert.equal(result.message.id, 'new-message');
+  const result = await clearGroupingChannel(channel);
+  assert.equal(deleted.length, 101);
+  assert.equal(result.id, 'new-message');
   assert.equal(sent.embeds[0].toJSON().title, 'Rotation groups');
 });
 

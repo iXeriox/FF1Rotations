@@ -129,17 +129,20 @@ async function reconcileOverflowMessages(channel, savedIds, embeds) {
   return ids;
 }
 
-export async function replaceGroupingChannel(channel) {
-  const replacement = await channel.clone({ reason: 'Reset the rotation grouping channel' });
-  await replacement.setPosition(channel.position, { reason: 'Preserve grouping channel position' });
-  try {
-    await channel.delete('Reset the rotation grouping channel');
-  } catch (error) {
-    await replacement.delete('Roll back failed grouping channel reset').catch(() => {});
-    throw error;
-  }
-  const message = await replacement.send({ embeds: [groupingPlaceholder()] });
-  return { channel: replacement, message };
+export async function clearGroupingChannel(channel) {
+  let before;
+  do {
+    const messages = await channel.messages.fetch({
+      limit: 100,
+      ...(before ? { before } : {}),
+    });
+    const page = [...messages.values()];
+    await Promise.all(page.map((message) => message.delete()));
+    before = page.at(-1)?.id;
+    if (page.length < 100) break;
+  } while (before);
+
+  return channel.send({ embeds: [groupingPlaceholder()] });
 }
 
 export function createGuildOperationQueue() {
@@ -182,7 +185,7 @@ export function createRotationUi(store) {
     });
     const groupingPermissions = [
       { id: guild.roles.everyone.id, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.ReadMessageHistory], deny: [PermissionFlagsBits.SendMessages] },
-      { id: botId, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory] },
+      { id: botId, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory, PermissionFlagsBits.ManageMessages] },
     ];
     const groupingChannel = await findOrCreateChannel(guild, current.ui.groupingChannelId, 'grouping', {
       parent: category.id,
@@ -190,7 +193,7 @@ export function createRotationUi(store) {
       permissionOverwrites: groupingPermissions,
       reason: 'Rotation bot setup',
     });
-    if (current.ui.visibilityVersion !== 2) {
+    if (current.ui.visibilityVersion !== 3) {
       await groupingChannel.edit({
         parent: category.id,
         topic: 'Read-only team assignments for the latest rotation.',
@@ -229,7 +232,7 @@ export function createRotationUi(store) {
         groupingChannelId: groupingChannel.id,
         groupingMessageId: groupingMessage.id,
         groupMessageIds,
-        visibilityVersion: 2,
+        visibilityVersion: 3,
       };
     });
     return { leaderRole, joinChannel, joinMessage, groupingChannel, groupingMessage };
@@ -254,13 +257,13 @@ export function createRotationUi(store) {
 
   async function resetGroupsNow(guild) {
     const ui = await ensureNow(guild);
-    const replacement = await replaceGroupingChannel(ui.groupingChannel);
+    const groupingMessage = await clearGroupingChannel(ui.groupingChannel);
     await store.update(guild.id, (latest) => {
-      latest.ui.groupingChannelId = replacement.channel.id;
-      latest.ui.groupingMessageId = replacement.message.id;
+      latest.ui.groupingChannelId = ui.groupingChannel.id;
+      latest.ui.groupingMessageId = groupingMessage.id;
       latest.ui.groupMessageIds = [];
     });
-    return replacement.message;
+    return groupingMessage;
   }
 
   async function clearLeaderRolesNow(guild, leaderIds) {

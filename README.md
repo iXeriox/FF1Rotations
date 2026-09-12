@@ -82,7 +82,7 @@ Set the server's dedicated channel once with `/stream channel`, then add account
 1. Install Node.js 20 or newer and run `npm install`.
 2. Create an application and bot in the Discord Developer Portal.
 3. Copy `.env.example` to `.env`, then add the bot token. The application/client ID is only required by the manual `npm run deploy` command. Set `DISCORD_GUILD_ID` during development for immediate guild command registration.
-4. Invite the bot with the `bot` and `applications.commands` scopes. Grant it **Manage Channels**, **Manage Roles**, **View Channels**, **Send Messages**, and **Read Message History**. Keep the bot's role above the generated Rotation Leader role.
+4. Invite the bot with the `bot` and `applications.commands` scopes. Grant it **Manage Channels**, **Manage Roles**, **Manage Messages**, **View Channels**, **Send Messages**, and **Read Message History**. Keep the bot's role above the generated Rotation Leader role.
 5. Run `npm start`. The bot automatically registers or updates all slash commands whenever it connects.
 
 When `DISCORD_GUILD_ID` is set, commands are registered directly in that server. Without it, the bot registers commands directly in every connected server. Both modes make new commands available immediately. On startup, legacy global registrations are removed before the guild commands are synchronized, preventing duplicate commands from appearing. `npm run deploy` remains available for troubleshooting, but normal operation only requires `npm start`.
@@ -105,9 +105,9 @@ The private `/dev` command provides `reset-join-rotations`, `clear-waiting`,
 and `clear-leaders` subcommands. `/dev group` runs the normal grouping
 workflow without requiring Manage Server permission. Discord still displays the command to other users,
 but every execution is checked against the developer's user ID. The development
-`close` operation empties the queue, clears leaders, closes signups, and replaces
-the grouping channel so its entire history is cleared before one fresh placeholder
-is posted. The replacement channel and message IDs are saved automatically.
+`close` operation empties the queue, clears leaders, closes signups, and deletes
+the grouping channel's entire message history before one fresh placeholder is
+posted. The channel is preserved and the new message ID is saved automatically.
 `/dev clear-grouping` performs that same full grouping-chat cleanup without
 resetting the waiting list or leader state.
 Leader assignments are cleared atomically by replacing

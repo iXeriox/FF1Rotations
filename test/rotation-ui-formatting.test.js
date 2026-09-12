@@ -1,6 +1,8 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { groupEmbeds, replaceGroupingChannel, waitingEmbed } from '../src/ui/rotation-space.js';
+import {
+  createGuildOperationQueue, groupEmbeds, replaceGroupingChannel, waitingEmbed,
+} from '../src/ui/rotation-space.js';
 
 const names = new Map([['leader-id', 'Leader Name'], ['player-id', 'Player Name']]);
 
@@ -61,4 +63,31 @@ test('grouping reset replaces the entire channel and posts one fresh placeholder
   assert.equal(result.channel.id, 'new-channel');
   assert.equal(result.message.id, 'new-message');
   assert.equal(sent.embeds[0].toJSON().title, 'Rotation groups');
+});
+
+test('rotation UI operations for one guild execute one at a time', async () => {
+  const enqueue = createGuildOperationQueue();
+  const guild = { id: 'guild' };
+  const order = [];
+  let releaseFirst;
+  const firstGate = new Promise((resolve) => { releaseFirst = resolve; });
+  const first = enqueue(guild, async () => {
+    order.push('first-start');
+    await firstGate;
+    order.push('first-end');
+  });
+  const second = enqueue(guild, async () => { order.push('second'); });
+
+  await new Promise((resolve) => { setImmediate(resolve); });
+  assert.deepEqual(order, ['first-start']);
+  releaseFirst();
+  await Promise.all([first, second]);
+  assert.deepEqual(order, ['first-start', 'first-end', 'second']);
+});
+
+test('a failed UI operation does not block the next interaction', async () => {
+  const enqueue = createGuildOperationQueue();
+  const guild = { id: 'guild' };
+  await assert.rejects(enqueue(guild, async () => { throw new Error('Discord failed'); }), /Discord failed/);
+  assert.equal(await enqueue(guild, async () => 'recovered'), 'recovered');
 });

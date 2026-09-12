@@ -1,17 +1,19 @@
 import { randomInt } from 'node:crypto';
 import { SlashCommandBuilder } from 'discord.js';
 import { guildOnly } from './helpers.js';
+import { generateAndPublishGroups } from './group.js';
 
 export const DEVELOPER_USER_ID = '375368296347729921';
 
 const subcommands = [
   ['reset-join-rotations', 'Recreate the managed join-rotation message.'],
   ['clear-waiting', 'Remove everyone from the waiting list.'],
-  ['reset-grouping', 'Clear the latest groups and restore the placeholder.'],
+  ['clear-grouping', 'Empty the grouping chat and restore its required embed.'],
   ['close', 'Close and completely reset the current rotation.'],
   ['open', 'Open the rotation waiting list.'],
   ['add-mock-user', 'Add a randomly generated mock player.'],
   ['add-mock-leader', 'Add a randomly generated mock leader.'],
+  ['group', 'Force group generation without an administrator permission check.'],
   ['clear-leaders', 'Clear saved leaders and every Rotation Leader role.'],
 ];
 
@@ -42,6 +44,10 @@ export default {
 
     await interaction.deferReply({ ephemeral: true });
     const action = interaction.options.getSubcommand();
+    if (action === 'group') {
+      await generateAndPublishGroups(interaction, { store, rotationUi, botStatus });
+      return;
+    }
     if (action === 'reset-join-rotations') {
       await rotationUi.resetJoinRotation(interaction.guild);
       await interaction.editReply('The join-rotation message was recreated.');
@@ -57,13 +63,13 @@ export default {
       await interaction.editReply('The waiting list was cleared.');
       return;
     }
-    if (action === 'reset-grouping') {
+    if (action === 'clear-grouping') {
       await store.update(interaction.guildId, (state) => {
         state.lastGroups = [];
         state.lobbyCodes = {};
       });
       await rotationUi.resetGroups(interaction.guild);
-      await interaction.editReply('Grouping was restored to its default state.');
+      await interaction.editReply('The grouping chat was cleared and its default embed was reposted.');
       return;
     }
     if (action === 'close') {

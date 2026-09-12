@@ -142,8 +142,23 @@ export async function replaceGroupingChannel(channel) {
   return { channel: replacement, message };
 }
 
+export function createGuildOperationQueue() {
+  const guildQueues = new Map();
+  return function enqueue(guild, operation) {
+    const previous = guildQueues.get(guild.id) ?? Promise.resolve();
+    const pending = previous.then(operation, operation);
+    const queued = pending.catch(() => {});
+    guildQueues.set(guild.id, queued);
+    return pending.finally(() => {
+      if (guildQueues.get(guild.id) === queued) guildQueues.delete(guild.id);
+    });
+  };
+}
+
 export function createRotationUi(store) {
-  async function ensure(guild) {
+  const enqueue = createGuildOperationQueue();
+
+  async function ensureNow(guild) {
     const current = store.get(guild.id);
     let leaderRole = current.ui.leaderRoleId
       ? await guild.roles.fetch(current.ui.leaderRoleId).catch(() => null)
@@ -220,15 +235,15 @@ export function createRotationUi(store) {
     return { leaderRole, joinChannel, joinMessage, groupingChannel, groupingMessage };
   }
 
-  async function refreshWaiting(guild) {
-    const ui = await ensure(guild);
+  async function refreshWaitingNow(guild) {
+    const ui = await ensureNow(guild);
     const state = store.get(guild.id);
     const displayNames = await resolveDisplayNames(guild, state.players, state.mockUsers);
     await ui.joinMessage.edit({ embeds: [waitingEmbed(guild, state, displayNames)], components: joinComponents(state.waitingOpen) });
   }
 
-  async function publishGroups(guild, groups) {
-    const ui = await ensure(guild);
+  async function publishGroupsNow(guild, groups) {
+    const ui = await ensureNow(guild);
     const displayNames = await resolveDisplayNames(guild, groups.flat(), store.get(guild.id).mockUsers);
     const embeds = groupEmbeds(groups, displayNames, store.get(guild.id).lobbyCodes);
     await ui.groupingMessage.edit({
@@ -237,8 +252,8 @@ export function createRotationUi(store) {
     });
   }
 
-  async function resetGroups(guild) {
-    const ui = await ensure(guild);
+  async function resetGroupsNow(guild) {
+    const ui = await ensureNow(guild);
     const replacement = await replaceGroupingChannel(ui.groupingChannel);
     await store.update(guild.id, (latest) => {
       latest.ui.groupingChannelId = replacement.channel.id;
@@ -248,8 +263,8 @@ export function createRotationUi(store) {
     return replacement.message;
   }
 
-  async function clearLeaderRoles(guild, leaderIds) {
-    const { leaderRole } = await ensure(guild);
+  async function clearLeaderRolesNow(guild, leaderIds) {
+    const { leaderRole } = await ensureNow(guild);
     await Promise.all(leaderIds.map(async (memberId) => {
       const member = await guild.members.fetch(memberId).catch(() => null);
       if (member?.roles.cache.has(leaderRole.id)) {
@@ -258,19 +273,19 @@ export function createRotationUi(store) {
     }));
   }
 
-  async function clearAllLeaderRoles(guild) {
-    const { leaderRole } = await ensure(guild);
+  async function clearAllLeaderRolesNow(guild) {
+    const { leaderRole } = await ensureNow(guild);
     // Fetching the entire member list relies on the privileged Guild Members
     // intent and can wait for a gateway chunk until Discord.js times out. Role
     // deletion is atomic on Discord and guarantees that the assignment is
     // removed from cached and uncached members alike.
     await leaderRole.delete('Development rotation reset');
     await store.update(guild.id, (state) => { delete state.ui.leaderRoleId; });
-    const replacement = await ensure(guild);
+    const replacement = await ensureNow(guild);
     return replacement.leaderRole;
   }
 
-  async function resetJoinRotation(guild) {
+  async function resetJoinRotationNow(guild) {
     const current = store.get(guild.id);
     const channel = current.ui.joinChannelId
       ? await guild.channels.fetch(current.ui.joinChannelId).catch(() => null)
@@ -278,10 +293,16 @@ export function createRotationUi(store) {
     const message = channel ? await getMessage(channel, current.ui.joinMessageId) : null;
     if (message) await message.delete();
     await store.update(guild.id, (state) => { delete state.ui.joinMessageId; });
-    return ensure(guild);
+    return ensureNow(guild);
   }
 
   return {
-    ensure, publishGroups, refreshWaiting, resetGroups, clearLeaderRoles, clearAllLeaderRoles, resetJoinRotation,
+    ensure: (guild) => enqueue(guild, () => ensureNow(guild)),
+    publishGroups: (guild, groups) => enqueue(guild, () => publishGroupsNow(guild, groups)),
+    refreshWaiting: (guild) => enqueue(guild, () => refreshWaitingNow(guild)),
+    resetGroups: (guild) => enqueue(guild, () => resetGroupsNow(guild)),
+    clearLeaderRoles: (guild, leaderIds) => enqueue(guild, () => clearLeaderRolesNow(guild, leaderIds)),
+    clearAllLeaderRoles: (guild) => enqueue(guild, () => clearAllLeaderRolesNow(guild)),
+    resetJoinRotation: (guild) => enqueue(guild, () => resetJoinRotationNow(guild)),
   };
 }

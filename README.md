@@ -38,6 +38,10 @@ On startup, the bot automatically creates a **Rotation Leader** role and a **Rot
 
 Both rotation views use resolved server display names rather than raw Discord mention tokens, so names render consistently on desktop and mobile. Each queue entry displays its number and bold player name on the first line, followed by a cleanly separated relative join time. Grouping uses a polished squad card per leader with a clearly separated leader, roster, and four-player capacity.
 
+Waiting-list clicks and other UI updates are serialized per server. If several
+members join or leaders update lobby codes at once, each state mutation and embed
+refresh completes in order without creating duplicate channels or stale displays.
+
 The IDs of the generated role, category, channels, and messages are persisted. On restart the bot restores those exact resources, moves its channels back under the Rotations category if necessary, and refreshes both embeds from stored state. It never adopts or overwrites unrelated channels merely because they have the same name; if a managed resource is deleted, the bot creates a replacement.
 
 Leaders are included automatically and never need to join the player queue. After `/group`, all player signups and leaders are cleared and leader roles are removed, ready for the next rotation. Only the immediately previous game's teammate pairings are retained, so the next grouping avoids repeats where possible without permanently penalising older matches. `/reset history:true` can also forget that last game.
@@ -97,12 +101,15 @@ Add another command by exporting its `data` and `execute` members, then includin
 ## Development
 
 The private `/dev` command provides `reset-join-rotations`, `clear-waiting`,
-`reset-grouping`, `close`, `open`, `add-mock-user`, `add-mock-leader`, and
-`clear-leaders` subcommands. Discord still displays the command to other users,
+`clear-grouping`, `close`, `open`, `add-mock-user`, `add-mock-leader`, `group`,
+and `clear-leaders` subcommands. `/dev group` runs the normal grouping
+workflow without requiring Manage Server permission. Discord still displays the command to other users,
 but every execution is checked against the developer's user ID. The development
 `close` operation empties the queue, clears leaders, closes signups, and replaces
 the grouping channel so its entire history is cleared before one fresh placeholder
 is posted. The replacement channel and message IDs are saved automatically.
+`/dev clear-grouping` performs that same full grouping-chat cleanup without
+resetting the waiting list or leader state.
 Leader assignments are cleared atomically by replacing
 the managed role, so the operation does not require a privileged full-member scan.
 

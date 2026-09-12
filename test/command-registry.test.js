@@ -13,7 +13,7 @@ test('exports the developer command in the deployed registry', () => {
   const dev = commands.find((command) => command.data.name === 'dev')?.data.toJSON();
   assert.ok(dev, 'dev command must be in the deployed registry');
   assert.deepEqual(dev.options.map(({ name }) => name), [
-    'reset-join-rotations', 'clear-waiting', 'reset-grouping', 'close',
+    'reset-join-rotations', 'clear-waiting', 'clear-grouping', 'close',
     'open', 'add-mock-user', 'add-mock-leader', 'group', 'clear-leaders',
   ]);
 });

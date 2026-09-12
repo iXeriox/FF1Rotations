@@ -101,13 +101,15 @@ Add another command by exporting its `data` and `execute` members, then includin
 ## Development
 
 The private `/dev` command provides `reset-join-rotations`, `clear-waiting`,
-`reset-grouping`, `close`, `open`, `add-mock-user`, `add-mock-leader`, `group`,
+`clear-grouping`, `close`, `open`, `add-mock-user`, `add-mock-leader`, `group`,
 and `clear-leaders` subcommands. `/dev group` runs the normal grouping
 workflow without requiring Manage Server permission. Discord still displays the command to other users,
 but every execution is checked against the developer's user ID. The development
 `close` operation empties the queue, clears leaders, closes signups, and replaces
 the grouping channel so its entire history is cleared before one fresh placeholder
 is posted. The replacement channel and message IDs are saved automatically.
+`/dev clear-grouping` performs that same full grouping-chat cleanup without
+resetting the waiting list or leader state.
 Leader assignments are cleared atomically by replacing
 the managed role, so the operation does not require a privileged full-member scan.
 

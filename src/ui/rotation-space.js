@@ -80,8 +80,9 @@ export const groupEmbeds = (groups, displayNames) => groups.map((group, index) =
     .setFooter({ text: `${group.length} / 4 members  •  Squad ${index + 1} of ${groups.length}` });
 });
 
-async function resolveDisplayNames(guild, userIds) {
+async function resolveDisplayNames(guild, userIds, mockUsers = {}) {
   const entries = await Promise.all([...new Set(userIds)].map(async (userId) => {
+    if (mockUsers[userId]) return [userId, escapeMarkdown(mockUsers[userId].displayName)];
     const member = guild.members.cache.get(userId) ?? await guild.members.fetch(userId).catch(() => null);
     const name = member?.displayName ?? member?.user?.username ?? 'Unknown member';
     return [userId, escapeMarkdown(name)];
@@ -166,7 +167,7 @@ export function createRotationUi(store) {
     }
 
     let joinMessage = await getMessage(joinChannel, current.ui.joinMessageId);
-    const displayNames = await resolveDisplayNames(guild, [...current.players, ...current.lastGroups.flat()]);
+    const displayNames = await resolveDisplayNames(guild, [...current.players, ...current.lastGroups.flat()], current.mockUsers);
     joinMessage ??= await joinChannel.send({ embeds: [waitingEmbed(guild, current, displayNames)], components: joinComponents(current.waitingOpen) });
     let groupingMessage = await getMessage(groupingChannel, current.ui.groupingMessageId);
     const currentGroupEmbeds = groupEmbeds(current.lastGroups, displayNames);
@@ -204,13 +205,13 @@ export function createRotationUi(store) {
   async function refreshWaiting(guild) {
     const ui = await ensure(guild);
     const state = store.get(guild.id);
-    const displayNames = await resolveDisplayNames(guild, state.players);
+    const displayNames = await resolveDisplayNames(guild, state.players, state.mockUsers);
     await ui.joinMessage.edit({ embeds: [waitingEmbed(guild, state, displayNames)], components: joinComponents(state.waitingOpen) });
   }
 
   async function publishGroups(guild, groups) {
     const ui = await ensure(guild);
-    const displayNames = await resolveDisplayNames(guild, groups.flat());
+    const displayNames = await resolveDisplayNames(guild, groups.flat(), store.get(guild.id).mockUsers);
     const embeds = groupEmbeds(groups, displayNames);
     await ui.groupingMessage.edit({
       content: `Groups generated <t:${Math.floor(Date.now() / 1000)}:R>`,
@@ -239,5 +240,26 @@ export function createRotationUi(store) {
     }));
   }
 
-  return { ensure, publishGroups, refreshWaiting, resetGroups, clearLeaderRoles };
+  async function clearAllLeaderRoles(guild) {
+    const { leaderRole } = await ensure(guild);
+    const members = await guild.members.fetch();
+    const leaders = members.filter((member) => member.roles.cache.has(leaderRole.id));
+    await Promise.all(leaders.map((member) => member.roles.remove(leaderRole, 'Development rotation reset')));
+    return leaders.size;
+  }
+
+  async function resetJoinRotation(guild) {
+    const current = store.get(guild.id);
+    const channel = current.ui.joinChannelId
+      ? await guild.channels.fetch(current.ui.joinChannelId).catch(() => null)
+      : null;
+    const message = channel ? await getMessage(channel, current.ui.joinMessageId) : null;
+    if (message) await message.delete();
+    await store.update(guild.id, (state) => { delete state.ui.joinMessageId; });
+    return ensure(guild);
+  }
+
+  return {
+    ensure, publishGroups, refreshWaiting, resetGroups, clearLeaderRoles, clearAllLeaderRoles, resetJoinRotation,
+  };
 }

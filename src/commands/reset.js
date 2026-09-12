@@ -20,6 +20,7 @@ export default {
       state.waitingOpen = false;
       state.lastGroups = [];
       state.commendationsBy = [];
+      state.mockUsers = {};
       if (history) {
         state.pairCounts = {};
         state.rounds = 0;

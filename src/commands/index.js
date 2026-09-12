@@ -3,6 +3,7 @@ import addplayer from './addplayer.js';
 import birthday from './birthday.js';
 import birthdays from './birthdays.js';
 import commend from './commend.js';
+import dev from './dev.js';
 import close from './close.js';
 import group from './group.js';
 import id from './id.js';
@@ -16,5 +17,5 @@ import stats from './stats.js';
 import stream from './stream.js';
 
 export const commands = [
-  join, leave, open, close, addplayer, addleader, removeleader, group, reset, status, commend, stats, id, birthday, birthdays, stream,
+  join, leave, open, close, addplayer, addleader, removeleader, group, reset, status, commend, stats, id, birthday, birthdays, stream, dev,
 ];

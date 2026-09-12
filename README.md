@@ -15,6 +15,7 @@ A small, modular Discord.js bot for organising event rotations. Players opt in, 
 | `/addleader member` | Manage Server | Give a member the persistent Rotation Leader role. |
 | `/removeleader member` | Manage Server | Remove a member's Rotation Leader role. |
 | `/group` | Manage Server | Generate groups, publish them, and clear the signup list. |
+| `/lobby code` | Current group leaders | Publish or update the lobby code shown to their latest squad. |
 | `/reset [history]` | Manage Server | Clear signups, optionally also clearing match history. |
 | `/commend user` | Everyone | Give one commendation to a teammate from the latest rotation. |
 | `/stats user` | Everyone | Show commendations, rotation count, and last rotation time. |
@@ -42,6 +43,11 @@ The IDs of the generated role, category, channels, and messages are persisted. O
 Leaders are included automatically and never need to join the player queue. After `/group`, all player signups and leaders are cleared and leader roles are removed, ready for the next rotation. Only the immediately previous game's teammate pairings are retained, so the next grouping avoids repeats where possible without permanently penalising older matches. `/reset history:true` can also forget that last game.
 
 Every generated Call of Duty team is capped at four members, including its leader. Each leader therefore supports up to three waiting players. If there are not enough leaders, `/group` explains how many are required and leaves the current signup list untouched.
+
+After `/group` publishes the squads, each squad leader can run `/lobby code` to
+place a join-in-progress code directly on their squad card. A leader can run the
+command again to update the code; non-leaders and leaders from older rotations
+cannot change the latest grouping display.
 
 Each participant may use `/commend` once after a rotation, and the recipient must have been on that participant's latest team. Commendations and participation statistics are retained across rotations and bot restarts.
 

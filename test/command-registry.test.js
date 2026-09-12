@@ -17,3 +17,9 @@ test('exports the developer command in the deployed registry', () => {
     'open', 'add-mock-user', 'add-mock-leader', 'clear-leaders',
   ]);
 });
+
+test('exports the lobby command in the deployed registry', () => {
+  const lobby = commands.find((command) => command.data.name === 'lobby')?.data.toJSON();
+  assert.ok(lobby, 'lobby command must be in the deployed registry');
+  assert.deepEqual(lobby.options.map(({ name }) => name), ['code']);
+});

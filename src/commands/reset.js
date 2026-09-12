@@ -19,6 +19,7 @@ export default {
       state.leaders = [];
       state.waitingOpen = false;
       state.lastGroups = [];
+      state.lobbyCodes = {};
       state.commendationsBy = [];
       state.mockUsers = {};
       if (history) {

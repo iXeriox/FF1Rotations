@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { groupEmbeds, waitingEmbed } from '../src/ui/rotation-space.js';
+import { groupEmbeds, replaceGroupingChannel, waitingEmbed } from '../src/ui/rotation-space.js';
 
 const names = new Map([['leader-id', 'Leader Name'], ['player-id', 'Player Name']]);
 
@@ -20,7 +20,45 @@ test('group cards show mobile-safe names, leader, roster, and capacity', () => {
   const embed = groupEmbeds([['leader-id', 'player-id']], names)[0].toJSON();
   assert.equal(embed.title, 'SQUAD 01');
   assert.match(embed.fields[0].value, /Leader Name/);
-  assert.match(embed.fields[1].value, /Player Name/);
+  assert.equal(embed.fields[1].value, '_Waiting for the leader to use `/lobby`._');
+  assert.match(embed.fields[2].value, /Player Name/);
   assert.equal(embed.footer.text, '2 / 4 members  •  Squad 1 of 1');
   assert.doesNotMatch(JSON.stringify(embed), /<@/);
+});
+
+test('group cards show the code submitted by their own leader', () => {
+  const embed = groupEmbeds(
+    [['leader-id', 'player-id']],
+    names,
+    { 'leader-id': 'JOIN-123' },
+  )[0].toJSON();
+  assert.equal(embed.fields[1].name, '🔑  LOBBY CODE');
+  assert.equal(embed.fields[1].value, '**JOIN-123**');
+});
+
+test('grouping reset replaces the entire channel and posts one fresh placeholder', async () => {
+  const calls = [];
+  let sent;
+  const replacement = {
+    id: 'new-channel',
+    setPosition: async (position) => calls.push(['position', position]),
+    send: async (payload) => {
+      sent = payload;
+      return { id: 'new-message' };
+    },
+  };
+  const channel = {
+    position: 4,
+    clone: async () => {
+      calls.push(['clone']);
+      return replacement;
+    },
+    delete: async () => calls.push(['delete']),
+  };
+
+  const result = await replaceGroupingChannel(channel);
+  assert.deepEqual(calls, [['clone'], ['position', 4], ['delete']]);
+  assert.equal(result.channel.id, 'new-channel');
+  assert.equal(result.message.id, 'new-message');
+  assert.equal(sent.embeds[0].toJSON().title, 'Rotation groups');
 });

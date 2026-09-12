@@ -242,10 +242,14 @@ export function createRotationUi(store) {
 
   async function clearAllLeaderRoles(guild) {
     const { leaderRole } = await ensure(guild);
-    const members = await guild.members.fetch();
-    const leaders = members.filter((member) => member.roles.cache.has(leaderRole.id));
-    await Promise.all(leaders.map((member) => member.roles.remove(leaderRole, 'Development rotation reset')));
-    return leaders.size;
+    // Fetching the entire member list relies on the privileged Guild Members
+    // intent and can wait for a gateway chunk until Discord.js times out. Role
+    // deletion is atomic on Discord and guarantees that the assignment is
+    // removed from cached and uncached members alike.
+    await leaderRole.delete('Development rotation reset');
+    await store.update(guild.id, (state) => { delete state.ui.leaderRoleId; });
+    const replacement = await ensure(guild);
+    return replacement.leaderRole;
   }
 
   async function resetJoinRotation(guild) {

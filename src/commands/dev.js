@@ -64,7 +64,7 @@ export default {
       return;
     }
     if (action === 'close') {
-      const removedRoles = await rotationUi.clearAllLeaderRoles(interaction.guild);
+      await rotationUi.clearAllLeaderRoles(interaction.guild);
       await store.update(interaction.guildId, (state) => {
         state.players = [];
         state.playerQueuedAt = {};
@@ -74,7 +74,7 @@ export default {
         state.mockUsers = {};
       });
       await Promise.all([refresh(interaction, rotationUi, botStatus), rotationUi.resetGroups(interaction.guild)]);
-      await interaction.editReply(`Rotation closed and reset. Removed the leader role from ${removedRoles} member${removedRoles === 1 ? '' : 's'}.`);
+      await interaction.editReply('Rotation closed and reset. All Rotation Leader assignments were cleared.');
       return;
     }
     if (action === 'open') {
@@ -84,14 +84,14 @@ export default {
       return;
     }
     if (action === 'clear-leaders') {
-      const removedRoles = await rotationUi.clearAllLeaderRoles(interaction.guild);
+      await rotationUi.clearAllLeaderRoles(interaction.guild);
       await store.update(interaction.guildId, (state) => {
         const leaderIds = new Set(state.leaders);
         state.leaders = [];
         state.mockUsers = Object.fromEntries(Object.entries(state.mockUsers).filter(([id]) => !leaderIds.has(id)));
       });
       await rotationUi.refreshWaiting(interaction.guild);
-      await interaction.editReply(`Cleared all leaders and removed the role from ${removedRoles} member${removedRoles === 1 ? '' : 's'}.`);
+      await interaction.editReply('Cleared all leaders and all Rotation Leader assignments.');
       return;
     }
 

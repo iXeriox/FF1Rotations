@@ -7,6 +7,7 @@ const emptyGuild = () => ({
   leaders: [],
   waitingOpen: false,
   lastGroups: [],
+  lobbyCodes: {},
   commendationsBy: [],
   userStats: {},
   callOfDutyIds: {},
@@ -17,7 +18,21 @@ const emptyGuild = () => ({
   pairCounts: {},
   rounds: 0,
   ui: {},
+  mockUsers: {},
 });
+
+function compact(value) {
+  if (Array.isArray(value)) return value.map(compact);
+  if (!value || typeof value !== 'object') return value;
+  return Object.fromEntries(Object.entries(value)
+    .map(([key, child]) => [key, compact(child)])
+    .filter(([, child]) => child !== null
+      && child !== false
+      && child !== 0
+      && child !== ''
+      && (!Array.isArray(child) || child.length)
+      && (Array.isArray(child) || typeof child !== 'object' || Object.keys(child).length)));
+}
 
 export class RotationStore {
   #file;
@@ -32,6 +47,7 @@ export class RotationStore {
   async load() {
     try {
       this.#data = JSON.parse(await readFile(this.#file, 'utf8'));
+      this.#data.guilds ??= {};
     } catch (error) {
       if (error.code !== 'ENOENT') throw error;
     }
@@ -57,7 +73,9 @@ export class RotationStore {
     this.#writeQueue = this.#writeQueue.then(async () => {
       await mkdir(dirname(this.#file), { recursive: true });
       const temporaryFile = `${this.#file}.tmp`;
-      await writeFile(temporaryFile, JSON.stringify(this.#data, null, 2));
+      // Defaults are restored by get(); omitting them keeps the hand-inspectable
+      // JSON focused on actual server configuration and rotation data.
+      await writeFile(temporaryFile, `${JSON.stringify(compact(this.#data), null, 2)}\n`);
       await rename(temporaryFile, this.#file);
     });
     return this.#writeQueue;

@@ -3,6 +3,7 @@ const emptyStats = () => ({ commendations: 0, rotations: 0, lastRotationAt: null
 export function recordRotation(state, groups, completedAt = Math.floor(Date.now() / 1000)) {
   state.rounds += 1;
   state.lastGroups = groups;
+  state.lobbyCodes = {};
   state.commendationsBy = [];
 
   for (const userId of new Set(groups.flat())) {

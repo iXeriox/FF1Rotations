@@ -26,7 +26,10 @@ export default {
         state.rounds = 0;
       }
     });
-    await Promise.all([rotationUi.refreshWaiting(interaction.guild), rotationUi.resetGroups(interaction.guild)]);
+    // Reset grouping first because it replaces the channel; refreshing in
+    // parallel could still be editing the channel while it is being deleted.
+    await rotationUi.resetGroups(interaction.guild);
+    await rotationUi.refreshWaiting(interaction.guild);
     await botStatus.refresh();
     await interaction.editReply(`Rotation cleared${history ? ', including matching history' : '; matching history was kept to avoid repeats'}.`);
   },

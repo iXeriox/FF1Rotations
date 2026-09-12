@@ -51,6 +51,10 @@ Every successful `/id` update also posts a professional announcement mentioning 
 
 Waiting lists start closed. An administrator must run `/open` before players can join through either the button or `/join`. `/close` prevents new signups without removing anyone already waiting; players can still use `/leave`. Completing `/group` or using `/reset` closes the list automatically.
 
+Opening a new waiting-list cycle clears the previous cycle's saved leaders and
+removes their **Rotation Leader** roles. Calling `/open` while signups are already
+open is a no-op, so it does not remove leaders selected for the active cycle.
+
 Administrators can use `/addplayer user` to add somebody on their behalf while the waiting list is open. Manual additions follow the same duplicate and leader checks as self-service joins, record the time they were added, and immediately refresh the public queue embed.
 
 Birthday reminders are checked at startup and hourly. On a saved birthday, the bot posts a celebratory embed and mention in the configured birthdays channel exactly once that year. The default channel ID is `1545395897347612733`; set `BIRTHDAYS_CHANNEL_ID` to change it.
@@ -90,8 +94,9 @@ The private `/dev` command provides `reset-join-rotations`, `clear-waiting`,
 `reset-grouping`, `close`, `open`, `add-mock-user`, `add-mock-leader`, and
 `clear-leaders` subcommands. Discord still displays the command to other users,
 but every execution is checked against the developer's user ID. The development
-`close` operation empties the queue, clears leaders, closes signups, and clears
-the grouping channel before posting a fresh placeholder and saving its message ID.
+`close` operation empties the queue, clears leaders, closes signups, and replaces
+the grouping channel so its entire history is cleared before one fresh placeholder
+is posted. The replacement channel and message IDs are saved automatically.
 Leader assignments are cleared atomically by replacing
 the managed role, so the operation does not require a privileged full-member scan.
 

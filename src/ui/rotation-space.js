@@ -124,12 +124,17 @@ async function reconcileOverflowMessages(channel, savedIds, embeds) {
   return ids;
 }
 
-export async function replaceGroupingMessage(channel, messageIds) {
-  await Promise.all([...new Set(messageIds.filter(Boolean))].map(async (messageId) => {
-    const message = await getMessage(channel, messageId);
-    if (message) await message.delete();
-  }));
-  return channel.send({ embeds: [groupingPlaceholder()] });
+export async function replaceGroupingChannel(channel) {
+  const replacement = await channel.clone({ reason: 'Reset the rotation grouping channel' });
+  await replacement.setPosition(channel.position, { reason: 'Preserve grouping channel position' });
+  try {
+    await channel.delete('Reset the rotation grouping channel');
+  } catch (error) {
+    await replacement.delete('Roll back failed grouping channel reset').catch(() => {});
+    throw error;
+  }
+  const message = await replacement.send({ embeds: [groupingPlaceholder()] });
+  return { channel: replacement, message };
 }
 
 export function createRotationUi(store) {
@@ -229,14 +234,13 @@ export function createRotationUi(store) {
 
   async function resetGroups(guild) {
     const ui = await ensure(guild);
-    const state = store.get(guild.id);
-    const messageIds = [state.ui.groupingMessageId, ...(state.ui.groupMessageIds ?? [])];
-    const groupingMessage = await replaceGroupingMessage(ui.groupingChannel, messageIds);
+    const replacement = await replaceGroupingChannel(ui.groupingChannel);
     await store.update(guild.id, (latest) => {
-      latest.ui.groupingMessageId = groupingMessage.id;
+      latest.ui.groupingChannelId = replacement.channel.id;
+      latest.ui.groupingMessageId = replacement.message.id;
       latest.ui.groupMessageIds = [];
     });
-    return groupingMessage;
+    return replacement.message;
   }
 
   async function clearLeaderRoles(guild, leaderIds) {

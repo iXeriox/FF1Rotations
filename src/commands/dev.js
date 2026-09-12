@@ -73,14 +73,29 @@ export default {
         state.lastGroups = [];
         state.mockUsers = {};
       });
-      await Promise.all([refresh(interaction, rotationUi, botStatus), rotationUi.resetGroups(interaction.guild)]);
+      await rotationUi.resetGroups(interaction.guild);
+      await refresh(interaction, rotationUi, botStatus);
       await interaction.editReply('Rotation closed and reset. All Rotation Leader assignments were cleared.');
       return;
     }
     if (action === 'open') {
-      await store.update(interaction.guildId, (state) => { state.waitingOpen = true; });
+      const current = store.get(interaction.guildId);
+      const openingNewCycle = !current.waitingOpen;
+      if (openingNewCycle) await rotationUi.clearLeaderRoles(interaction.guild, current.leaders);
+      await store.update(interaction.guildId, (state) => {
+        if (!state.waitingOpen) {
+          const previousLeaders = new Set(state.leaders);
+          state.leaders = [];
+          state.mockUsers = Object.fromEntries(
+            Object.entries(state.mockUsers).filter(([id]) => !previousLeaders.has(id)),
+          );
+        }
+        state.waitingOpen = true;
+      });
       await refresh(interaction, rotationUi, botStatus);
-      await interaction.editReply('The rotation waiting list is now open.');
+      await interaction.editReply(openingNewCycle
+        ? 'The rotation waiting list is now open. Previous Rotation Leaders were cleared.'
+        : 'The waiting list is already open.');
       return;
     }
     if (action === 'clear-leaders') {

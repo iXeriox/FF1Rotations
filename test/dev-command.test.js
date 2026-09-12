@@ -58,7 +58,7 @@ test('developer close clears roles and resets all active rotation state', async 
 
   assert.deepEqual(state, {
     players: [], playerQueuedAt: {}, leaders: [], waitingOpen: false,
-    lastGroups: [], mockUsers: {},
+    lastGroups: [], lobbyCodes: {}, mockUsers: {},
   });
   assert.ok(calls.some(([name]) => name === 'clear-roles'));
   assert.ok(calls.some(([name]) => name === 'reset-groups'));

@@ -61,15 +61,20 @@ const groupingPlaceholder = () => new EmbedBuilder()
 
 const squadIcons = ['1️⃣', '2️⃣', '3️⃣'];
 
-export const groupEmbeds = (groups, displayNames) => groups.map((group, index) => {
+export const groupEmbeds = (groups, displayNames, lobbyCodes = {}) => groups.map((group, index) => {
   const leader = displayNames.get(group[0]) ?? 'Unknown member';
   const players = group.slice(1);
+  const lobbyCode = lobbyCodes[group[0]];
   return new EmbedBuilder()
     .setColor(0x5865f2)
     .setTitle(`SQUAD ${String(index + 1).padStart(2, '0')}`)
     .setDescription('Your team for the latest Call of Duty rotation.')
     .addFields(
       { name: '👑  TEAM LEADER', value: `**${leader}**` },
+      {
+        name: '🔑  LOBBY CODE',
+        value: lobbyCode ? `**${escapeMarkdown(lobbyCode)}**` : '_Waiting for the leader to use `/lobby`._',
+      },
       {
         name: '🎮  SQUAD MEMBERS',
         value: players.length
@@ -183,7 +188,7 @@ export function createRotationUi(store) {
     const displayNames = await resolveDisplayNames(guild, [...current.players, ...current.lastGroups.flat()], current.mockUsers);
     joinMessage ??= await joinChannel.send({ embeds: [waitingEmbed(guild, current, displayNames)], components: joinComponents(current.waitingOpen) });
     let groupingMessage = await getMessage(groupingChannel, current.ui.groupingMessageId);
-    const currentGroupEmbeds = groupEmbeds(current.lastGroups, displayNames);
+    const currentGroupEmbeds = groupEmbeds(current.lastGroups, displayNames, current.lobbyCodes);
     groupingMessage ??= await groupingChannel.send({
       embeds: currentGroupEmbeds.length ? currentGroupEmbeds.slice(0, 10) : [groupingPlaceholder()],
     });
@@ -225,7 +230,7 @@ export function createRotationUi(store) {
   async function publishGroups(guild, groups) {
     const ui = await ensure(guild);
     const displayNames = await resolveDisplayNames(guild, groups.flat(), store.get(guild.id).mockUsers);
-    const embeds = groupEmbeds(groups, displayNames);
+    const embeds = groupEmbeds(groups, displayNames, store.get(guild.id).lobbyCodes);
     await ui.groupingMessage.edit({
       content: `Groups generated <t:${Math.floor(Date.now() / 1000)}:R>`,
       embeds: embeds.slice(0, 10),

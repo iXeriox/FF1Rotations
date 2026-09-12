@@ -58,7 +58,10 @@ export default {
       return;
     }
     if (action === 'reset-grouping') {
-      await store.update(interaction.guildId, (state) => { state.lastGroups = []; });
+      await store.update(interaction.guildId, (state) => {
+        state.lastGroups = [];
+        state.lobbyCodes = {};
+      });
       await rotationUi.resetGroups(interaction.guild);
       await interaction.editReply('Grouping was restored to its default state.');
       return;
@@ -71,6 +74,7 @@ export default {
         state.leaders = [];
         state.waitingOpen = false;
         state.lastGroups = [];
+        state.lobbyCodes = {};
         state.mockUsers = {};
       });
       await rotationUi.resetGroups(interaction.guild);

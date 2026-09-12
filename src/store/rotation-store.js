@@ -7,6 +7,7 @@ const emptyGuild = () => ({
   leaders: [],
   waitingOpen: false,
   lastGroups: [],
+  lobbyCodes: {},
   commendationsBy: [],
   userStats: {},
   callOfDutyIds: {},

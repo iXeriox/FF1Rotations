@@ -18,7 +18,7 @@ function waitingFields(state, displayNames) {
   for (const [index, userId] of state.players.entries()) {
     const queuedAt = state.playerQueuedAt?.[userId];
     const name = displayNames.get(userId) ?? 'Unknown member';
-    const line = `${index + 1}. **${name}**\n\n└ Joined ${queuedAt ? `<t:${queuedAt}:R>` : '_before time tracking_'}\n\n`;
+    const line = `${index + 1}. **${name}**\n└ Joined ${queuedAt ? `<t:${queuedAt}:R>` : '_before time tracking_'}\n\n`;
     if (value.length + line.length > 900) {
       fields.push({ name: fields.length ? 'Waiting — continued' : `Waiting (${state.players.length})`, value });
       value = '';

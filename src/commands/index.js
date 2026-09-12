@@ -3,6 +3,7 @@ import addplayer from './addplayer.js';
 import birthday from './birthday.js';
 import birthdays from './birthdays.js';
 import commend from './commend.js';
+import dev from './dev.js';
 import close from './close.js';
 import dev from './dev.js';
 import group from './group.js';

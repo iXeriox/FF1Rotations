@@ -124,6 +124,14 @@ async function reconcileOverflowMessages(channel, savedIds, embeds) {
   return ids;
 }
 
+export async function replaceGroupingMessage(channel, messageIds) {
+  await Promise.all([...new Set(messageIds.filter(Boolean))].map(async (messageId) => {
+    const message = await getMessage(channel, messageId);
+    if (message) await message.delete();
+  }));
+  return channel.send({ embeds: [groupingPlaceholder()] });
+}
+
 export function createRotationUi(store) {
   async function ensure(guild) {
     const current = store.get(guild.id);
@@ -221,13 +229,14 @@ export function createRotationUi(store) {
 
   async function resetGroups(guild) {
     const ui = await ensure(guild);
-    const overflowIds = store.get(guild.id).ui.groupMessageIds ?? [];
-    await Promise.all(overflowIds.map(async (messageId) => {
-      const message = await getMessage(ui.groupingChannel, messageId);
-      if (message) await message.delete();
-    }));
-    await ui.groupingMessage.edit({ content: null, embeds: [groupingPlaceholder()] });
-    await store.update(guild.id, (state) => { state.ui.groupMessageIds = []; });
+    const state = store.get(guild.id);
+    const messageIds = [state.ui.groupingMessageId, ...(state.ui.groupMessageIds ?? [])];
+    const groupingMessage = await replaceGroupingMessage(ui.groupingChannel, messageIds);
+    await store.update(guild.id, (latest) => {
+      latest.ui.groupingMessageId = groupingMessage.id;
+      latest.ui.groupMessageIds = [];
+    });
+    return groupingMessage;
   }
 
   async function clearLeaderRoles(guild, leaderIds) {

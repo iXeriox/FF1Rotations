@@ -90,8 +90,9 @@ The private `/dev` command provides `reset-join-rotations`, `clear-waiting`,
 `reset-grouping`, `close`, `open`, `add-mock-user`, `add-mock-leader`, and
 `clear-leaders` subcommands. Discord still displays the command to other users,
 but every execution is checked against the developer's user ID. The development
-`close` operation empties the queue, clears leaders, closes signups, and restores
-the grouping placeholder. Leader assignments are cleared atomically by replacing
+`close` operation empties the queue, clears leaders, closes signups, and clears
+the grouping channel before posting a fresh placeholder and saving its message ID.
+Leader assignments are cleared atomically by replacing
 the managed role, so the operation does not require a privileged full-member scan.
 
 ```sh

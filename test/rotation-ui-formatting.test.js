@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { groupEmbeds, waitingEmbed } from '../src/ui/rotation-space.js';
+import { groupEmbeds, replaceGroupingChannel, waitingEmbed } from '../src/ui/rotation-space.js';
 
 const names = new Map([['leader-id', 'Leader Name'], ['player-id', 'Player Name']]);
 
@@ -23,4 +23,31 @@ test('group cards show mobile-safe names, leader, roster, and capacity', () => {
   assert.match(embed.fields[1].value, /Player Name/);
   assert.equal(embed.footer.text, '2 / 4 members  •  Squad 1 of 1');
   assert.doesNotMatch(JSON.stringify(embed), /<@/);
+});
+
+test('grouping reset replaces the entire channel and posts one fresh placeholder', async () => {
+  const calls = [];
+  let sent;
+  const replacement = {
+    id: 'new-channel',
+    setPosition: async (position) => calls.push(['position', position]),
+    send: async (payload) => {
+      sent = payload;
+      return { id: 'new-message' };
+    },
+  };
+  const channel = {
+    position: 4,
+    clone: async () => {
+      calls.push(['clone']);
+      return replacement;
+    },
+    delete: async () => calls.push(['delete']),
+  };
+
+  const result = await replaceGroupingChannel(channel);
+  assert.deepEqual(calls, [['clone'], ['position', 4], ['delete']]);
+  assert.equal(result.channel.id, 'new-channel');
+  assert.equal(result.message.id, 'new-message');
+  assert.equal(sent.embeds[0].toJSON().title, 'Rotation groups');
 });

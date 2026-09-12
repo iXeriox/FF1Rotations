@@ -28,6 +28,7 @@ A small, modular Discord.js bot for organising event rotations. Players opt in, 
 | `/stream remove platform name` | Manage Server | Stop monitoring a streamer. |
 | `/stream list` | Manage Server | Show monitored accounts and notification channels. |
 | `/stream help` | Manage Server | Explain setup and provider requirements. |
+| `/dev …` | Developer `375368296347729921` only | Reset rotation UI/state or add synthetic players and leaders for testing. |
 
 On startup, the bot automatically creates a **Rotation Leader** role and a **Rotations** category containing:
 
@@ -49,6 +50,10 @@ Use `/id id:iXeriox#6447986` to save a Call of Duty ID. Whitespace is removed au
 Every successful `/id` update also posts a professional announcement mentioning the member in channel `1530580498265538600`. Set `ACTIVISION_IDS_CHANNEL_ID` to use a different channel; if that channel is unavailable, the ID is still saved and the member receives a warning.
 
 Waiting lists start closed. An administrator must run `/open` before players can join through either the button or `/join`. `/close` prevents new signups without removing anyone already waiting; players can still use `/leave`. Completing `/group` or using `/reset` closes the list automatically.
+
+Opening a new waiting-list cycle clears the previous cycle's saved leaders and
+removes their **Rotation Leader** roles. Calling `/open` while signups are already
+open is a no-op, so it does not remove leaders selected for the active cycle.
 
 Administrators can use `/addplayer user` to add somebody on their behalf while the waiting list is open. Manual additions follow the same duplicate and leader checks as self-service joins, record the time they were added, and immediately refresh the public queue embed.
 
@@ -84,6 +89,16 @@ The default JSON data file is `data/rotations.json`. Set `DATA_FILE` to use anot
 Add another command by exporting its `data` and `execute` members, then including it in `src/commands/index.js`.
 
 ## Development
+
+The private `/dev` command provides `reset-join-rotations`, `clear-waiting`,
+`reset-grouping`, `close`, `open`, `add-mock-user`, `add-mock-leader`, and
+`clear-leaders` subcommands. Discord still displays the command to other users,
+but every execution is checked against the developer's user ID. The development
+`close` operation empties the queue, clears leaders, closes signups, and replaces
+the grouping channel so its entire history is cleared before one fresh placeholder
+is posted. The replacement channel and message IDs are saved automatically.
+Leader assignments are cleared atomically by replacing
+the managed role, so the operation does not require a privileged full-member scan.
 
 ```sh
 npm test

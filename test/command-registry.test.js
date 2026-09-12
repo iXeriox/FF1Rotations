@@ -8,3 +8,12 @@ test('exports a visible stream command with all management subcommands', () => {
   assert.equal(stream.default_member_permissions, undefined);
   assert.deepEqual(stream.options.map(({ name }) => name), ['add', 'remove', 'channel', 'list', 'help']);
 });
+
+test('exports the developer command in the deployed registry', () => {
+  const dev = commands.find((command) => command.data.name === 'dev')?.data.toJSON();
+  assert.ok(dev, 'dev command must be in the deployed registry');
+  assert.deepEqual(dev.options.map(({ name }) => name), [
+    'reset-join-rotations', 'clear-waiting', 'reset-grouping', 'close',
+    'open', 'add-mock-user', 'add-mock-leader', 'clear-leaders',
+  ]);
+});

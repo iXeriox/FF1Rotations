@@ -5,6 +5,7 @@ import birthdays from './birthdays.js';
 import commend from './commend.js';
 import dev from './dev.js';
 import close from './close.js';
+import dev from './dev.js';
 import group from './group.js';
 import id from './id.js';
 import join from './join.js';

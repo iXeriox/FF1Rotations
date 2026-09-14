@@ -57,10 +57,10 @@ export default {
     ));
     await interaction.reply({
       content: result.ok
-        ? (subcommand === 'add' ? `Now monitoring **${result.stream.name}** on **${result.stream.platform}** in this channel.` : 'That stream was removed.')
+        ? (subcommand === 'add' ? `Now monitoring **${result.stream.name}** on **${result.stream.platform}** in this server's configured alert channel.` : 'That stream was removed.')
         : result.message,
       ephemeral: true,
     });
-    if (result.ok && subcommand === 'add') void streamScanner.scan().catch(console.error);
+    if (result.ok && subcommand === 'add') void streamScanner.scan(interaction.guildId).catch(console.error);
   },
 };

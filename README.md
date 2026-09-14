@@ -91,6 +91,11 @@ Command and button usage is logged to the console with an ISO timestamp, action/
 
 Set the server's dedicated channel once with `/stream channel`, then add accounts. Live accounts are scanned concurrently every two minutes using lightweight native HTTP requests. A transition to live posts `@everyone`, the streamer name, and a direct stream link in that configured channel. The channel and alert state are persisted, preventing duplicate messages after restarts. TikTok detection uses its public live page and may be affected by TikTok anti-bot changes; Twitch uses the official API and requires `TWITCH_CLIENT_ID` and `TWITCH_CLIENT_SECRET`. Provider checks are isolated behind adapters so more platforms can be added without changing commands or the scanner.
 
+Stream configuration, live state, and alert routing are isolated per server. Each
+scan logs its server/stream totals, provider result and duration, sent alert
+channel, failures, and final alert count to the console, making missing provider
+credentials, unavailable channels, and upstream HTTP errors directly visible.
+
 `/stream` is deliberately visible in Discord's command picker for everyone so it cannot disappear because of Discord's cached command-permission metadata. Its management actions still enforce **Manage Server** permission when executed.
 
 ## Setup

@@ -42,6 +42,10 @@ Both rotation views use resolved server display names rather than raw Discord me
 Waiting-list clicks and other UI updates are serialized per server. If several
 members join or leaders update lobby codes at once, each state mutation and embed
 refresh completes in order without creating duplicate channels or stale displays.
+Managed Discord roles, channels, and messages are cached after setup, so routine
+joins, grouping, lobby-code changes, and leader updates avoid repeating the same
+Discord API lookups. Destructive development resets invalidate and rebuild only
+the resources they replace.
 
 The IDs of the generated role, category, channels, and messages are persisted. On restart the bot restores those exact resources, moves its channels back under the Rotations category if necessary, and refreshes both embeds from stored state. It never adopts or overwrites unrelated channels merely because they have the same name; if a managed resource is deleted, the bot creates a replacement.
 

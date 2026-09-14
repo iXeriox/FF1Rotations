@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
-  clearGroupingChannel, createGuildOperationQueue, groupEmbeds, waitingEmbed,
+  clearGroupingChannel, createGuildOperationQueue, groupEmbeds, removeLeaderRole, waitingEmbed,
 } from '../src/ui/rotation-space.js';
 
 const names = new Map([['leader-id', 'Leader Name'], ['player-id', 'Player Name']]);
@@ -88,4 +88,22 @@ test('a failed UI operation does not block the next interaction', async () => {
   const guild = { id: 'guild' };
   await assert.rejects(enqueue(guild, async () => { throw new Error('Discord failed'); }), /Discord failed/);
   assert.equal(await enqueue(guild, async () => 'recovered'), 'recovered');
+});
+
+test('leader cleanup uses the cached guild member without another API fetch', async () => {
+  const removed = [];
+  const role = { id: 'role' };
+  const member = {
+    roles: {
+      cache: new Map([['role', role]]),
+      remove: async (removedRole) => removed.push(removedRole.id),
+    },
+  };
+  const guild = { members: {
+    cache: new Map([['leader', member]]),
+    fetch: async () => assert.fail('cached leader should not be fetched'),
+  } };
+
+  await removeLeaderRole(guild, role, 'leader');
+  assert.deepEqual(removed, ['role']);
 });

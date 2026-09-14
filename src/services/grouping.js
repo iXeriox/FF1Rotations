@@ -43,6 +43,18 @@ export function createGroups(players, leaders, pairCounts, random = Math.random)
   return groups;
 }
 
+/** Build four-player squads by choosing one random queued player to lead each squad. */
+export function createRandomLeaderGroups(players, pairCounts, random = Math.random) {
+  if (!players.length) throw new Error('Add at least one player before creating groups.');
+  const leaderCount = Math.ceil(players.length / MAX_TEAM_SIZE);
+  const leaders = players
+    .map((id) => ({ id, tieBreaker: random() }))
+    .sort((a, b) => a.tieBreaker - b.tieBreaker)
+    .slice(0, leaderCount)
+    .map(({ id }) => id);
+  return createGroups(players, leaders, pairCounts, random);
+}
+
 export function recordGroups(groups, pairCounts) {
   for (const group of groups) {
     for (let first = 0; first < group.length; first += 1) {

@@ -14,7 +14,8 @@ A small, modular Discord.js bot for organising event rotations. Players opt in, 
 | `/rotation` | Everyone | View leaders, players, and recorded rounds. |
 | `/addleader member` | Manage Server | Give a member the persistent Rotation Leader role. |
 | `/removeleader member` | Manage Server | Remove a member's Rotation Leader role. |
-| `/group` | Manage Server | Generate groups, publish them, and clear the signup list. |
+| `/group` | Manage Server | Generate groups with randomly selected leaders, publish them, and clear signups. |
+| `/groupold` | Manage Server | Generate groups using leaders previously selected with `/addleader`. |
 | `/lobby code` | Current group leaders | Publish or update the lobby code shown to their latest squad. |
 | `/reset [history]` | Manage Server | Clear signups, optionally also clearing match history. |
 | `/commend user` | Everyone | Give one commendation to a teammate from the latest rotation. |
@@ -44,7 +45,17 @@ refresh completes in order without creating duplicate channels or stale displays
 
 The IDs of the generated role, category, channels, and messages are persisted. On restart the bot restores those exact resources, moves its channels back under the Rotations category if necessary, and refreshes both embeds from stored state. It never adopts or overwrites unrelated channels merely because they have the same name; if a managed resource is deleted, the bot creates a replacement.
 
-Leaders are included automatically and never need to join the player queue. After `/group`, all player signups and leaders are cleared and leader roles are removed, ready for the next rotation. Only the immediately previous game's teammate pairings are retained, so the next grouping avoids repeats where possible without permanently penalising older matches. `/reset history:true` can also forget that last game.
+Administrators who want to select leaders manually can use `/addleader` followed
+by `/groupold`; those leaders are included automatically and do not join the
+player queue. The standard `/group` instead picks one random leader from the queued
+players for each squad and does not require `/addleader`. After grouping, player
+signups are cleared while manually selected rotation leaders remain cached for
+the completed squads. On the next `/open`, their roles and cached leader entries
+are removed so everyone can join the new queue. Cached guild members are updated
+without another API lookup, keeping the transition quick. Only the immediately
+previous game's teammate pairings are retained, so the next grouping avoids
+repeats where possible without permanently penalising older matches.
+`/reset history:true` can also forget that last game.
 
 Every generated Call of Duty team is capped at four members, including its leader. Each leader therefore supports up to three waiting players. If there are not enough leaders, `/group` explains how many are required and leaves the current signup list untouched.
 

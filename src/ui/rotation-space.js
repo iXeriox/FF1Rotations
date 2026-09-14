@@ -158,6 +158,14 @@ export function createGuildOperationQueue() {
   };
 }
 
+export async function removeLeaderRole(guild, leaderRole, memberId) {
+  const member = guild.members.cache.get(memberId)
+    ?? await guild.members.fetch(memberId).catch(() => null);
+  if (member?.roles.cache.has(leaderRole.id)) {
+    await member.roles.remove(leaderRole, 'Rotation completed');
+  }
+}
+
 export function createRotationUi(store) {
   const enqueue = createGuildOperationQueue();
 
@@ -268,12 +276,7 @@ export function createRotationUi(store) {
 
   async function clearLeaderRolesNow(guild, leaderIds) {
     const { leaderRole } = await ensureNow(guild);
-    await Promise.all(leaderIds.map(async (memberId) => {
-      const member = await guild.members.fetch(memberId).catch(() => null);
-      if (member?.roles.cache.has(leaderRole.id)) {
-        await member.roles.remove(leaderRole, 'Rotation completed');
-      }
-    }));
+    await Promise.all(leaderIds.map((memberId) => removeLeaderRole(guild, leaderRole, memberId)));
   }
 
   async function clearAllLeaderRolesNow(guild) {

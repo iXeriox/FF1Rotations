@@ -23,3 +23,12 @@ test('exports the lobby command in the deployed registry', () => {
   assert.ok(lobby, 'lobby command must be in the deployed registry');
   assert.deepEqual(lobby.options.map(({ name }) => name), ['code']);
 });
+
+test('exports separate random and administrator-selected grouping commands', () => {
+  const group = commands.find((command) => command.data.name === 'group')?.data.toJSON();
+  const groupold = commands.find((command) => command.data.name === 'groupold')?.data.toJSON();
+  assert.ok(group);
+  assert.ok(groupold);
+  assert.equal(group.default_member_permissions, '32');
+  assert.equal(groupold.default_member_permissions, '32');
+});

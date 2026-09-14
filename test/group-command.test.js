@@ -8,8 +8,8 @@ test('simultaneous group requests publish only one rotation', async () => {
     waitingOpen: true, rounds: 0, lastGroups: [], lobbyCodes: {},
     commendationsBy: [], userStats: {},
   };
-  let releaseRoles;
-  const rolesGate = new Promise((resolve) => { releaseRoles = resolve; });
+  let releasePublish;
+  const publishGate = new Promise((resolve) => { releasePublish = resolve; });
   let published = 0;
   const dependencies = {
     store: {
@@ -17,8 +17,10 @@ test('simultaneous group requests publish only one rotation', async () => {
       update: async (guildId, updater) => updater(state),
     },
     rotationUi: {
-      clearLeaderRoles: async () => rolesGate,
-      publishGroups: async () => { published += 1; },
+      publishGroups: async () => {
+        published += 1;
+        await publishGate;
+      },
       refreshWaiting: async () => {},
     },
     botStatus: { refresh: async () => {} },
@@ -31,10 +33,11 @@ test('simultaneous group requests publish only one rotation', async () => {
   const first = generateAndPublishGroups(interaction('first'), dependencies);
   const second = generateAndPublishGroups(interaction('second'), dependencies);
   await new Promise((resolve) => { setImmediate(resolve); });
-  releaseRoles();
+  releasePublish();
 
   assert.equal(await first, true);
   assert.equal(await second, false);
   assert.equal(published, 1);
   assert.equal(state.rounds, 1);
+  assert.deepEqual(state.leaders, ['leader']);
 });

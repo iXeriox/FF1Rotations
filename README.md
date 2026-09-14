@@ -89,7 +89,12 @@ The bot's Discord status is refreshed hourly. It shows **Rotations: Active** whe
 
 Command and button usage is logged to the console with an ISO timestamp, action/subcommand, user, guild, channel, outcome, and execution time. Failed interactions include the error message, while command option values are deliberately excluded so birthdays and other user-provided values are not leaked into logs.
 
-Set the server's dedicated channel once with `/stream channel`, then add accounts. Live accounts are scanned concurrently every two minutes using lightweight native HTTP requests. A transition to live posts `@everyone`, the streamer name, and a direct stream link in that configured channel. The channel and alert state are persisted, preventing duplicate messages after restarts. TikTok detection uses its public live page and may be affected by TikTok anti-bot changes; Twitch uses the official API and requires `TWITCH_CLIENT_ID` and `TWITCH_CLIENT_SECRET`. Provider checks are isolated behind adapters so more platforms can be added without changing commands or the scanner.
+Set the server's dedicated channel once with `/stream channel`, then add accounts. Live accounts are scanned concurrently every two minutes using lightweight native HTTP requests. A transition to live posts `@everyone`, the streamer name, and a direct stream link in that configured channel. The channel and alert state are persisted, preventing duplicate messages after restarts. TikTok detection checks its live-room endpoint first and falls back to hydration data on the public live page; either route may still be affected by TikTok anti-bot changes. Twitch uses the official API and requires `TWITCH_CLIENT_ID` and `TWITCH_CLIENT_SECRET`. Provider checks are isolated behind adapters so more platforms can be added without changing commands or the scanner.
+
+Stream configuration, live state, and alert routing are isolated per server. Each
+scan logs its server/stream totals, provider result and duration, sent alert
+channel, failures, and final alert count to the console, making missing provider
+credentials, unavailable channels, and upstream HTTP errors directly visible.
 
 Stream configuration, live state, and alert routing are isolated per server. Each
 scan logs its server/stream totals, provider result and duration, sent alert

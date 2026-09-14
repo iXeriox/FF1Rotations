@@ -27,12 +27,12 @@ test('scanner uses the guild-wide announcement channel over legacy per-stream ch
   guildState.streamNotificationChannelId = 'live-announcements';
   addStream(guildState, 'tiktok', 'creator', 'old-channel');
   let fetchedChannel;
+  const guild = { channels: { cache: new Map(), fetch: async (channelId) => {
+    fetchedChannel = channelId;
+    return { isTextBased: () => true, send: async () => {} };
+  } } };
   const client = {
-    guilds: { cache: new Map([['guild', {}]]) },
-    channels: { fetch: async (channelId) => {
-      fetchedChannel = channelId;
-      return { isTextBased: () => true, send: async () => {} };
-    } },
+    guilds: { cache: new Map([['guild', guild]]) },
   };
   const store = {
     get: () => structuredClone(guildState),
@@ -50,9 +50,11 @@ test('scanner announces only a new live transition and persists its state', asyn
   const guildState = state();
   addStream(guildState, 'twitch', 'creator', 'channel');
   const sent = [];
+  const guild = { channels: { cache: new Map(), fetch: async () => (
+    { isTextBased: () => true, send: async (message) => sent.push(message) }
+  ) } };
   const client = {
-    guilds: { cache: new Map([['guild', {}]]) },
-    channels: { fetch: async () => ({ isTextBased: () => true, send: async (message) => sent.push(message) }) },
+    guilds: { cache: new Map([['guild', guild]]) },
   };
   const store = {
     get: () => structuredClone(guildState),
@@ -68,4 +70,39 @@ test('scanner announces only a new live transition and persists its state', asyn
   assert.match(sent[0].content, /^@everyone .*has gone live.*https:\/\/www\.twitch\.tv\/creator/);
   assert.deepEqual(sent[0].allowedMentions, { parse: ['everyone'] });
   assert.equal(guildState.streams['twitch:creator'].isLive, true);
+});
+
+test('scanner keeps checks and alert channels isolated per server', async () => {
+  const states = new Map(['one', 'two'].map((guildId) => {
+    const guildState = state();
+    guildState.streamNotificationChannelId = `${guildId}-alerts`;
+    addStream(guildState, 'twitch', 'creator', `${guildId}-alerts`);
+    return [guildId, guildState];
+  }));
+  const sent = [];
+  const guilds = new Map([...states.keys()].map((guildId) => [guildId, {
+    channels: {
+      cache: new Map(),
+      fetch: async (channelId) => ({
+        isTextBased: () => true,
+        send: async () => sent.push([guildId, channelId]),
+      }),
+    },
+  }]));
+  const logs = [];
+  const scanner = createStreamScanner({ guilds: { cache: guilds } }, {
+    get: (guildId) => structuredClone(states.get(guildId)),
+    update: async (guildId, updater) => updater(states.get(guildId)),
+  }, {
+    twitch: async () => ({ live: true, liveId: 'live', url: 'https://www.twitch.tv/creator' }),
+  }, {
+    streamScanStarted: (guildCount, streamCount) => logs.push(['started', guildCount, streamCount]),
+    streamAlerted: (details) => logs.push(['alerted', details.guildId, details.channelId]),
+    streamScanCompleted: (streamCount, alerts) => logs.push(['completed', streamCount, alerts]),
+  });
+
+  assert.equal(await scanner.scan(), 2);
+  assert.deepEqual(sent.sort(), [['one', 'one-alerts'], ['two', 'two-alerts']]);
+  assert.deepEqual(logs[0], ['started', 2, 2]);
+  assert.deepEqual(logs.at(-1), ['completed', 2, 2]);
 });

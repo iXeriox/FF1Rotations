@@ -23,5 +23,23 @@ export function createConsoleLogger(output = console, now = () => new Date()) {
     system(message) {
       output.info(`${prefix('SYSTEM')} ${message}`);
     },
+    streamScanStarted(guilds, streams) {
+      output.info(`${prefix('STREAM')} scan_started guilds=${guilds} streams=${streams}`);
+    },
+    streamChecked({ guildId, platform, name, live, durationMs }) {
+      output.info(`${prefix('STREAM')} checked guild=${guildId} platform=${platform} name=${name} live=${live} duration_ms=${Math.round(durationMs)}`);
+    },
+    streamAlerted({ guildId, platform, name, channelId }) {
+      output.info(`${prefix('STREAM')} alert_sent guild=${guildId} platform=${platform} name=${name} channel=${channelId}`);
+    },
+    streamCheckFailed({ guildId, platform, name, error }) {
+      output.error(`${prefix('STREAM')} check_failed guild=${guildId} platform=${platform} name=${name} error="${error?.message ?? error}"`);
+    },
+    streamScanCompleted(streams, notifications, durationMs) {
+      output.info(`${prefix('STREAM')} scan_completed streams=${streams} alerts=${notifications} duration_ms=${Math.round(durationMs)}`);
+    },
+    streamScanSkipped() {
+      output.info(`${prefix('STREAM')} scan_skipped reason="already running"`);
+    },
   };
 }

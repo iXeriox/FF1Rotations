@@ -48,8 +48,9 @@ The IDs of the generated role, category, channels, and messages are persisted. O
 Administrators who want to select leaders manually can use `/addleader` followed
 by `/groupold`; those leaders are included automatically and do not join the
 player queue. The standard `/group` instead picks one random leader from the queued
-players for each squad and does not require `/addleader`. After grouping, player
-signups are cleared while manually selected rotation leaders remain cached for
+players for each squad and does not require `/addleader`. Each selected player is
+given the **Rotation Leader** role and cached as a current leader. After grouping,
+player signups are cleared while all current rotation leaders remain cached for
 the completed squads. On the next `/open`, their roles and cached leader entries
 are removed so everyone can join the new queue. Cached guild members are updated
 without another API lookup, keeping the transition quick. Only the immediately

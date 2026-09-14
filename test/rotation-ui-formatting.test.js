@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
-  clearGroupingChannel, createGuildOperationQueue, groupEmbeds, removeLeaderRole, waitingEmbed,
+  addLeaderRole, clearGroupingChannel, createGuildOperationQueue, groupEmbeds, removeLeaderRole, waitingEmbed,
 } from '../src/ui/rotation-space.js';
 
 const names = new Map([['leader-id', 'Leader Name'], ['player-id', 'Player Name']]);
@@ -106,4 +106,22 @@ test('leader cleanup uses the cached guild member without another API fetch', as
 
   await removeLeaderRole(guild, role, 'leader');
   assert.deepEqual(removed, ['role']);
+});
+
+test('random leader assignment uses the cached guild member and adds the role', async () => {
+  const added = [];
+  const role = { id: 'role' };
+  const member = {
+    roles: {
+      cache: new Map(),
+      add: async (addedRole) => added.push(addedRole.id),
+    },
+  };
+  const guild = { members: {
+    cache: new Map([['leader', member]]),
+    fetch: async () => assert.fail('cached leader should not be fetched'),
+  } };
+
+  await addLeaderRole(guild, role, 'leader');
+  assert.deepEqual(added, ['role']);
 });

@@ -166,6 +166,15 @@ export async function removeLeaderRole(guild, leaderRole, memberId) {
   }
 }
 
+export async function addLeaderRole(guild, leaderRole, memberId) {
+  const member = guild.members.cache.get(memberId)
+    ?? await guild.members.fetch(memberId).catch(() => null);
+  if (!member) throw new Error(`Could not find selected Rotation Leader ${memberId}.`);
+  if (!member.roles.cache.has(leaderRole.id)) {
+    await member.roles.add(leaderRole, 'Randomly selected as Rotation Leader');
+  }
+}
+
 export function createRotationUi(store) {
   const enqueue = createGuildOperationQueue();
 
@@ -279,6 +288,15 @@ export function createRotationUi(store) {
     await Promise.all(leaderIds.map((memberId) => removeLeaderRole(guild, leaderRole, memberId)));
   }
 
+  async function replaceLeaderRolesNow(guild, previousLeaderIds, nextLeaderIds) {
+    const { leaderRole } = await ensureNow(guild);
+    const nextLeaders = new Set(nextLeaderIds);
+    await Promise.all(previousLeaderIds
+      .filter((memberId) => !nextLeaders.has(memberId))
+      .map((memberId) => removeLeaderRole(guild, leaderRole, memberId)));
+    await Promise.all(nextLeaderIds.map((memberId) => addLeaderRole(guild, leaderRole, memberId)));
+  }
+
   async function clearAllLeaderRolesNow(guild) {
     const { leaderRole } = await ensureNow(guild);
     // Fetching the entire member list relies on the privileged Guild Members
@@ -308,6 +326,10 @@ export function createRotationUi(store) {
     refreshWaiting: (guild) => enqueue(guild, () => refreshWaitingNow(guild)),
     resetGroups: (guild) => enqueue(guild, () => resetGroupsNow(guild)),
     clearLeaderRoles: (guild, leaderIds) => enqueue(guild, () => clearLeaderRolesNow(guild, leaderIds)),
+    replaceLeaderRoles: (guild, previousLeaderIds, nextLeaderIds) => enqueue(
+      guild,
+      () => replaceLeaderRolesNow(guild, previousLeaderIds, nextLeaderIds),
+    ),
     clearAllLeaderRoles: (guild) => enqueue(guild, () => clearAllLeaderRolesNow(guild)),
     resetJoinRotation: (guild) => enqueue(guild, () => resetJoinRotationNow(guild)),
   };

@@ -53,11 +53,19 @@ async function generateAndPublishGroupsNow(
     await interaction.editReply(error.message);
     return false;
   }
+  const selectedLeaders = groups.map(([leaderId]) => leaderId);
+  if (!useSelectedLeaders) {
+    const mockUsers = state.mockUsers ?? {};
+    const realPreviousLeaders = state.leaders.filter((leaderId) => !mockUsers[leaderId]);
+    const realSelectedLeaders = selectedLeaders.filter((leaderId) => !mockUsers[leaderId]);
+    await rotationUi.replaceLeaderRoles(interaction.guild, realPreviousLeaders, realSelectedLeaders);
+  }
   await store.update(interaction.guildId, (latest) => {
     latest.pairCounts = createPairHistory(groups);
     latest.players = [];
     latest.playerQueuedAt = {};
     latest.waitingOpen = false;
+    if (!useSelectedLeaders) latest.leaders = selectedLeaders;
     recordRotation(latest, groups);
   });
   await rotationUi.publishGroups(interaction.guild, groups);

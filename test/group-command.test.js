@@ -11,12 +11,16 @@ test('simultaneous group requests publish only one rotation', async () => {
   let releasePublish;
   const publishGate = new Promise((resolve) => { releasePublish = resolve; });
   let published = 0;
+  let roleReplacement;
   const dependencies = {
     store: {
       get: () => structuredClone(state),
       update: async (guildId, updater) => updater(state),
     },
     rotationUi: {
+      replaceLeaderRoles: async (guild, previous, next) => {
+        roleReplacement = [guild, previous, next];
+      },
       publishGroups: async () => {
         published += 1;
         await publishGate;
@@ -39,5 +43,6 @@ test('simultaneous group requests publish only one rotation', async () => {
   assert.equal(await second, false);
   assert.equal(published, 1);
   assert.equal(state.rounds, 1);
-  assert.deepEqual(state.leaders, ['leader']);
+  assert.deepEqual(state.leaders, ['player']);
+  assert.deepEqual(roleReplacement, [{ id: 'guild' }, ['leader'], ['player']]);
 });

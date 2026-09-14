@@ -177,8 +177,11 @@ export async function addLeaderRole(guild, leaderRole, memberId) {
 
 export function createRotationUi(store) {
   const enqueue = createGuildOperationQueue();
+  const uiCache = new Map();
 
   async function ensureNow(guild) {
+    const cached = uiCache.get(guild.id);
+    if (cached) return cached;
     const current = store.get(guild.id);
     let leaderRole = current.ui.leaderRoleId
       ? await guild.roles.fetch(current.ui.leaderRoleId).catch(() => null)
@@ -252,7 +255,9 @@ export function createRotationUi(store) {
         visibilityVersion: 3,
       };
     });
-    return { leaderRole, joinChannel, joinMessage, groupingChannel, groupingMessage };
+    const resources = { leaderRole, joinChannel, joinMessage, groupingChannel, groupingMessage };
+    uiCache.set(guild.id, resources);
+    return resources;
   }
 
   async function refreshWaitingNow(guild) {
@@ -264,12 +269,21 @@ export function createRotationUi(store) {
 
   async function publishGroupsNow(guild, groups) {
     const ui = await ensureNow(guild);
-    const displayNames = await resolveDisplayNames(guild, groups.flat(), store.get(guild.id).mockUsers);
-    const embeds = groupEmbeds(groups, displayNames, store.get(guild.id).lobbyCodes);
+    const state = store.get(guild.id);
+    const displayNames = await resolveDisplayNames(guild, groups.flat(), state.mockUsers);
+    const embeds = groupEmbeds(groups, displayNames, state.lobbyCodes);
     await ui.groupingMessage.edit({
       content: `Groups generated <t:${Math.floor(Date.now() / 1000)}:R>`,
       embeds: embeds.slice(0, 10),
     });
+    const groupMessageIds = await reconcileOverflowMessages(
+      ui.groupingChannel,
+      state.ui.groupMessageIds ?? [],
+      embeds,
+    );
+    if (JSON.stringify(groupMessageIds) !== JSON.stringify(state.ui.groupMessageIds ?? [])) {
+      await store.update(guild.id, (latest) => { latest.ui.groupMessageIds = groupMessageIds; });
+    }
   }
 
   async function resetGroupsNow(guild) {
@@ -280,6 +294,7 @@ export function createRotationUi(store) {
       latest.ui.groupingMessageId = groupingMessage.id;
       latest.ui.groupMessageIds = [];
     });
+    uiCache.set(guild.id, { ...ui, groupingMessage });
     return groupingMessage;
   }
 
@@ -305,6 +320,7 @@ export function createRotationUi(store) {
     // removed from cached and uncached members alike.
     await leaderRole.delete('Development rotation reset');
     await store.update(guild.id, (state) => { delete state.ui.leaderRoleId; });
+    uiCache.delete(guild.id);
     const replacement = await ensureNow(guild);
     return replacement.leaderRole;
   }
@@ -317,6 +333,7 @@ export function createRotationUi(store) {
     const message = channel ? await getMessage(channel, current.ui.joinMessageId) : null;
     if (message) await message.delete();
     await store.update(guild.id, (state) => { delete state.ui.joinMessageId; });
+    uiCache.delete(guild.id);
     return ensureNow(guild);
   }
 

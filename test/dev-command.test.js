@@ -7,6 +7,7 @@ test('registers all private development subcommands without admin permissions', 
   assert.equal(command.name, 'dev');
   assert.equal(command.default_member_permissions, undefined);
   assert.deepEqual(command.options.map(({ name }) => name), [
+    'add-stream', 'remove-stream', 'stream-channel',
     'reset-join-rotations', 'clear-waiting', 'clear-grouping', 'close',
     'open', 'add-mock-user', 'add-mock-leader', 'group', 'clear-leaders',
   ]);
@@ -87,4 +88,40 @@ test('developer clear-grouping clears group data and recreates the grouping chat
   assert.deepEqual(state, { lastGroups: [], lobbyCodes: {} });
   assert.equal(resetCalls, 1);
   assert.equal(interaction.reply, 'The grouping chat was cleared and its default embed was reposted.');
+});
+
+test('developer can add, reroute, and remove a server-scoped stream', async () => {
+  const state = { streamNotificationChannelId: 'default-alerts', streams: {} };
+  let scans = 0;
+  const dependencies = {
+    store: {
+      get: () => structuredClone(state),
+      update: async (guildId, updater) => updater(state),
+    },
+    streamScanner: { scan: async (guildId) => { assert.equal(guildId, 'guild'); scans += 1; } },
+  };
+  const run = async (action, channel) => {
+    const interaction = {
+      guildId: 'guild', guild: { id: 'guild' }, user: { id: DEVELOPER_USER_ID },
+      options: {
+        getSubcommand: () => action,
+        getString: (name) => (name === 'platform' ? 'twitch' : 'creator'),
+        getChannel: () => channel,
+      },
+      deferReply: async () => {},
+      editReply: async (message) => { interaction.reply = message; },
+    };
+    await dev.execute(interaction, dependencies);
+    return interaction.reply;
+  };
+
+  const override = { id: 'special-alerts', isTextBased: () => true };
+  assert.match(await run('add-stream', override), /special-alerts/);
+  assert.equal(state.streams['twitch:creator'].channelId, 'special-alerts');
+  assert.match(await run('stream-channel', null), /default channel/);
+  assert.equal(state.streams['twitch:creator'].channelId, null);
+  assert.equal(await run('remove-stream', null), 'That stream was removed.');
+  assert.deepEqual(state.streams, {});
+  await new Promise((resolve) => { setImmediate(resolve); });
+  assert.equal(scans, 1);
 });

@@ -18,7 +18,7 @@ export function createStreamScanner(client, store, providers, logger = {}) {
         for (const [key, stream] of Object.entries(state.streams)) {
           checks.push(checkStream(guildId, key, {
             ...stream,
-            channelId: state.streamNotificationChannelId ?? stream.channelId,
+            channelId: stream.channelId ?? state.streamNotificationChannelId,
           }));
         }
       }

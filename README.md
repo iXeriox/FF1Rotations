@@ -26,8 +26,9 @@ A small, modular Discord.js bot for organising event rotations. Players opt in, 
 | `/birthday help` | Everyone | Explain the birthday commands. |
 | `/birthdays` | Everyone | Show upcoming birthdays without exposing birth years. |
 | `/stream channel channel` | Manage Server | Set the single channel used for all live announcements. |
-| `/stream add platform name` | Manage Server | Monitor a TikTok or Twitch user. |
+| `/stream add platform name [channel]` | Manage Server | Monitor a user, optionally with a dedicated alert channel. |
 | `/stream remove platform name` | Manage Server | Stop monitoring a streamer. |
+| `/stream route platform name [channel]` | Manage Server | Set a per-stream channel, or omit it to restore the server default. |
 | `/stream list` | Manage Server | Show monitored accounts and notification channels. |
 | `/stream help` | Manage Server | Explain setup and provider requirements. |
 | `/dev …` | Developer `375368296347729921` only | Reset rotation UI/state or add synthetic players and leaders for testing. |
@@ -89,12 +90,18 @@ The bot's Discord status is refreshed hourly. It shows **Rotations: Active** whe
 
 Command and button usage is logged to the console with an ISO timestamp, action/subcommand, user, guild, channel, outcome, and execution time. Failed interactions include the error message, while command option values are deliberately excluded so birthdays and other user-provided values are not leaked into logs.
 
-Set the server's dedicated channel once with `/stream channel`, then add accounts. Live accounts are scanned concurrently every two minutes using lightweight native HTTP requests. A transition to live posts `@everyone`, the streamer name, and a direct stream link in that configured channel. The channel and alert state are persisted, preventing duplicate messages after restarts. TikTok detection checks its live-room endpoint first and falls back to hydration data on the public live page; either route may still be affected by TikTok anti-bot changes. Twitch uses the official API and requires `TWITCH_CLIENT_ID` and `TWITCH_CLIENT_SECRET`. Provider checks are isolated behind adapters so more platforms can be added without changing commands or the scanner.
-
-Stream configuration, live state, and alert routing are isolated per server. Each
-scan logs its server/stream totals, provider result and duration, sent alert
-channel, failures, and final alert count to the console, making missing provider
-credentials, unavailable channels, and upstream HTTP errors directly visible.
+Set each server's default alert destination once with `/stream channel`, then add
+accounts. `/stream add` accepts an optional channel override, and `/stream route`
+can change an existing stream's channel or restore the server default. Live
+accounts are scanned concurrently every two minutes using lightweight native HTTP
+requests. A transition to live posts `@everyone`, the streamer name, and a direct
+stream link in that stream's override or the configured server default. The
+channel and alert state are persisted, preventing duplicate messages after
+restarts. TikTok detection checks its live-room endpoint first and falls back to
+hydration data on the public live page; either route may still be affected by
+TikTok anti-bot changes. Twitch uses the official API and requires
+`TWITCH_CLIENT_ID` and `TWITCH_CLIENT_SECRET`. Provider checks are isolated behind
+adapters so more platforms can be added without changing commands or the scanner.
 
 Stream configuration, live state, and alert routing are isolated per server. Each
 scan logs its server/stream totals, provider result and duration, sent alert
@@ -126,7 +133,8 @@ Add another command by exporting its `data` and `execute` members, then includin
 
 ## Development
 
-The private `/dev` command provides `reset-join-rotations`, `clear-waiting`,
+The private `/dev` command provides `add-stream`, `remove-stream`, `stream-channel`,
+`reset-join-rotations`, `clear-waiting`,
 `clear-grouping`, `close`, `open`, `add-mock-user`, `add-mock-leader`, `group`,
 and `clear-leaders` subcommands. `/dev group` runs the normal grouping
 workflow without requiring Manage Server permission. Discord still displays the command to other users,

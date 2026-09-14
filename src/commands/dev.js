@@ -2,6 +2,7 @@ import { randomInt } from 'node:crypto';
 import { SlashCommandBuilder } from 'discord.js';
 import { guildOnly } from './helpers.js';
 import { generateAndPublishGroups } from './group.js';
+import { addStream, removeStream, setStreamChannel } from '../services/streams.js';
 
 export const DEVELOPER_USER_ID = '375368296347729921';
 
@@ -16,6 +17,24 @@ const subcommands = [
   ['group', 'Force group generation without an administrator permission check.'],
   ['clear-leaders', 'Clear saved leaders and every Rotation Leader role.'],
 ];
+
+const streamPlatform = (option) => option.setName('platform').setDescription('Streaming platform.').setRequired(true)
+  .addChoices({ name: 'TikTok', value: 'tiktok' }, { name: 'Twitch', value: 'twitch' });
+
+function addStreamSubcommands(builder) {
+  return builder
+    .addSubcommand((command) => command.setName('add-stream').setDescription('Add a monitored stream.')
+      .addStringOption(streamPlatform)
+      .addStringOption((option) => option.setName('name').setDescription('Streamer username.').setRequired(true))
+      .addChannelOption((option) => option.setName('channel').setDescription('Optional per-stream alert channel.')))
+    .addSubcommand((command) => command.setName('remove-stream').setDescription('Remove a monitored stream.')
+      .addStringOption(streamPlatform)
+      .addStringOption((option) => option.setName('name').setDescription('Streamer username.').setRequired(true)))
+    .addSubcommand((command) => command.setName('stream-channel').setDescription('Set one stream\'s alert channel.')
+      .addStringOption(streamPlatform)
+      .addStringOption((option) => option.setName('name').setDescription('Streamer username.').setRequired(true))
+      .addChannelOption((option) => option.setName('channel').setDescription('Override channel; omit for server default.')));
+}
 
 function mockMember(kind, random = randomInt) {
   const number = random(1_000, 10_000);
@@ -33,9 +52,9 @@ async function refresh(interaction, rotationUi, botStatus) {
 export default {
   data: subcommands.reduce(
     (builder, [name, description]) => builder.addSubcommand((command) => command.setName(name).setDescription(description)),
-    new SlashCommandBuilder().setName('dev').setDescription('Private rotation development utilities.'),
+    addStreamSubcommands(new SlashCommandBuilder().setName('dev').setDescription('Private bot development utilities.')),
   ),
-  async execute(interaction, { store, rotationUi, botStatus }) {
+  async execute(interaction, { store, rotationUi, botStatus, streamScanner }) {
     if (!guildOnly(interaction)) return;
     if (interaction.user.id !== DEVELOPER_USER_ID) {
       await interaction.reply({ content: 'This command is restricted to the bot developer.', ephemeral: true });
@@ -44,6 +63,34 @@ export default {
 
     await interaction.deferReply({ ephemeral: true });
     const action = interaction.options.getSubcommand();
+    if (['add-stream', 'remove-stream', 'stream-channel'].includes(action)) {
+      const platform = interaction.options.getString('platform', true);
+      const name = interaction.options.getString('name', true);
+      const channel = action === 'remove-stream' ? null : interaction.options.getChannel('channel', false);
+      if (channel && !channel.isTextBased()) {
+        await interaction.editReply('Choose a text-based channel for stream alerts.');
+        return;
+      }
+      const state = store.get(interaction.guildId);
+      if (['add-stream', 'stream-channel'].includes(action) && !channel && !state.streamNotificationChannelId) {
+        await interaction.editReply('Set the server default with `/stream channel` or provide a channel.');
+        return;
+      }
+      const result = await store.update(interaction.guildId, (latest) => (
+        action === 'add-stream' ? addStream(latest, platform, name, channel?.id)
+          : action === 'remove-stream' ? removeStream(latest, platform, name)
+            : setStreamChannel(latest, platform, name, channel?.id)
+      ));
+      if (!result.ok) {
+        await interaction.editReply(result.message);
+        return;
+      }
+      if (action === 'add-stream') void streamScanner.scan(interaction.guildId).catch(console.error);
+      await interaction.editReply(action === 'remove-stream'
+        ? 'That stream was removed.'
+        : `Stream alerts will use ${channel ? `<#${channel.id}>` : "the server's default channel"}.`);
+      return;
+    }
     if (action === 'group') {
       await generateAndPublishGroups(interaction, { store, rotationUi, botStatus });
       return;

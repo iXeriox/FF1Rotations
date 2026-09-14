@@ -6,7 +6,32 @@ test('exports a visible stream command with all management subcommands', () => {
   const stream = commands.find((command) => command.data.name === 'stream')?.data.toJSON();
   assert.ok(stream, 'stream command must be in the deployed registry');
   assert.equal(stream.default_member_permissions, undefined);
-  assert.deepEqual(stream.options.map(({ name }) => name), ['add', 'remove', 'channel', 'list', 'help']);
+  assert.deepEqual(stream.options.map(({ name }) => name), ['add', 'remove', 'channel', 'route', 'list', 'help']);
+});
+
+test('exports the developer command in the deployed registry', () => {
+  const dev = commands.find((command) => command.data.name === 'dev')?.data.toJSON();
+  assert.ok(dev, 'dev command must be in the deployed registry');
+  assert.deepEqual(dev.options.map(({ name }) => name), [
+    'add-stream', 'remove-stream', 'stream-channel',
+    'reset-join-rotations', 'clear-waiting', 'clear-grouping', 'close',
+    'open', 'add-mock-user', 'add-mock-leader', 'group', 'clear-leaders',
+  ]);
+});
+
+test('exports the lobby command in the deployed registry', () => {
+  const lobby = commands.find((command) => command.data.name === 'lobby')?.data.toJSON();
+  assert.ok(lobby, 'lobby command must be in the deployed registry');
+  assert.deepEqual(lobby.options.map(({ name }) => name), ['code']);
+});
+
+test('exports separate random and administrator-selected grouping commands', () => {
+  const group = commands.find((command) => command.data.name === 'group')?.data.toJSON();
+  const groupold = commands.find((command) => command.data.name === 'groupold')?.data.toJSON();
+  assert.ok(group);
+  assert.ok(groupold);
+  assert.equal(group.default_member_permissions, '32');
+  assert.equal(groupold.default_member_permissions, '32');
 });
 
 test('exports the developer command in the deployed registry', () => {

@@ -20,7 +20,8 @@ test('group cards show mobile-safe names, leader, roster, and capacity', () => {
   const embed = groupEmbeds([['leader-id', 'player-id']], names)[0].toJSON();
   assert.equal(embed.title, 'SQUAD 01');
   assert.match(embed.fields[0].value, /Leader Name/);
-  assert.match(embed.fields[1].value, /Player Name/);
+  assert.equal(embed.fields[1].value, '_Waiting for the leader to use `/lobby`._');
+  assert.match(embed.fields[2].value, /Player Name/);
   assert.equal(embed.footer.text, '2 / 4 members  •  Squad 1 of 1');
   assert.doesNotMatch(JSON.stringify(embed), /<@/);
 });

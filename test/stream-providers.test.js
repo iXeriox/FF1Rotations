@@ -1,6 +1,8 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { checkTikTok, parseTikTokLiveHtml, parseTikTokRoom } from '../src/services/stream-providers.js';
+import {
+  checkTikTok, createTwitchProvider, parseTikTokLiveHtml, parseTikTokRoom, parseTwitchLiveHtml,
+} from '../src/services/stream-providers.js';
 
 test('parses current TikTok room endpoint live and offline responses', () => {
   assert.deepEqual(parseTikTokRoom({ data: { user: { status: 2 }, liveRoom: { roomId: '12345' } } }), {
@@ -35,4 +37,35 @@ test('TikTok provider falls back to live-page data when the room endpoint change
     url: 'https://www.tiktok.com/@itsvixenplays/live',
   });
   assert.equal(requested.length, 2);
+});
+
+test('parses Twitch live and offline status from public structured page data', () => {
+  const page = (live) => `<html><script type="application/ld+json">${JSON.stringify({
+    '@type': 'VideoObject',
+    publication: { '@type': 'BroadcastEvent', isLiveBroadcast: live, startDate: '2026-09-14T12:00:00Z' },
+  })}</script></html>`;
+  assert.deepEqual(parseTwitchLiveHtml(page(true)), {
+    live: true, liveId: '2026-09-14T12:00:00Z',
+  });
+  assert.deepEqual(parseTwitchLiveHtml(page(false)), { live: false, liveId: null });
+  assert.deepEqual(parseTwitchLiveHtml('<html>No live broadcast metadata</html>'), {
+    live: false, liveId: null,
+  });
+});
+
+test('checks a Twitch public page without API credentials or identifiers', async () => {
+  const requested = [];
+  const request = async (url) => {
+    requested.push(url);
+    return {
+      ok: true,
+      text: async () => '<script type="application/ld+json">{"isLiveBroadcast":true}</script>',
+    };
+  };
+  const provider = createTwitchProvider(undefined, undefined, request);
+
+  assert.deepEqual(await provider('itsvixenplays'), {
+    live: true, liveId: null, url: 'https://www.twitch.tv/itsvixenplays',
+  });
+  assert.deepEqual(requested, ['https://www.twitch.tv/itsvixenplays']);
 });

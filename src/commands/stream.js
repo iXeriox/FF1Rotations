@@ -28,7 +28,7 @@ export default {
     if (!guildOnly(interaction) || !requireAdmin(interaction)) return;
     const subcommand = interaction.options.getSubcommand();
     if (subcommand === 'help') {
-      await interaction.reply({ content: 'First use `/stream channel` to select the server default, then use `/stream add`. Add an optional channel for one stream, or change it later with `/stream route`. TikTok works without credentials; Twitch requires `TWITCH_CLIENT_ID` and `TWITCH_CLIENT_SECRET`.', ephemeral: true });
+      await interaction.reply({ content: 'First use `/stream channel` to select the server default, then use `/stream add`. Add an optional channel for one stream, or change it later with `/stream route`. TikTok and Twitch can be checked without credentials; Twitch API credentials are optional and improve reliability.', ephemeral: true });
       return;
     }
     if (subcommand === 'channel') {

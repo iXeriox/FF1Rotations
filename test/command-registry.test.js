@@ -33,27 +33,3 @@ test('exports separate random and administrator-selected grouping commands', () 
   assert.equal(group.default_member_permissions, '32');
   assert.equal(groupold.default_member_permissions, '32');
 });
-
-test('exports the developer command in the deployed registry', () => {
-  const dev = commands.find((command) => command.data.name === 'dev')?.data.toJSON();
-  assert.ok(dev, 'dev command must be in the deployed registry');
-  assert.deepEqual(dev.options.map(({ name }) => name), [
-    'reset-join-rotations', 'clear-waiting', 'clear-grouping', 'close',
-    'open', 'add-mock-user', 'add-mock-leader', 'group', 'clear-leaders',
-  ]);
-});
-
-test('exports the lobby command in the deployed registry', () => {
-  const lobby = commands.find((command) => command.data.name === 'lobby')?.data.toJSON();
-  assert.ok(lobby, 'lobby command must be in the deployed registry');
-  assert.deepEqual(lobby.options.map(({ name }) => name), ['code']);
-});
-
-test('exports separate random and administrator-selected grouping commands', () => {
-  const group = commands.find((command) => command.data.name === 'group')?.data.toJSON();
-  const groupold = commands.find((command) => command.data.name === 'groupold')?.data.toJSON();
-  assert.ok(group);
-  assert.ok(groupold);
-  assert.equal(group.default_member_permissions, '32');
-  assert.equal(groupold.default_member_permissions, '32');
-});

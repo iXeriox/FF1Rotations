@@ -99,8 +99,9 @@ stream link in that stream's override or the configured server default. The
 channel and alert state are persisted, preventing duplicate messages after
 restarts. TikTok detection checks its live-room endpoint first and falls back to
 hydration data on the public live page; either route may still be affected by
-TikTok anti-bot changes. Twitch uses the official API and requires
-`TWITCH_CLIENT_ID` and `TWITCH_CLIENT_SECRET`. Provider checks are isolated behind
+TikTok anti-bot changes. Twitch can read public structured page data without any
+keys or IDs. When `TWITCH_CLIENT_ID` and `TWITCH_CLIENT_SECRET` are configured,
+the official API is preferred and the public page remains a fallback. Provider checks are isolated behind
 adapters so more platforms can be added without changing commands or the scanner.
 
 Stream configuration, live state, and alert routing are isolated per server. Each

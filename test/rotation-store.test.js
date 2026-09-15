@@ -51,3 +51,19 @@ test('serializes concurrent updates without losing players', async () => {
   assert.equal(store.get('guild').players.length, 20);
   assert.deepEqual(store.get('guild').ui, {});
 });
+
+test('omits default values from JSON and restores them when reloaded', async () => {
+  const directory = await mkdtemp(join(tmpdir(), 'rotations-'));
+  const file = join(directory, 'state.json');
+  const store = new RotationStore(file);
+  await store.load();
+  await store.update('guild', (state) => { state.waitingOpen = true; });
+
+  const saved = JSON.parse(await readFile(file, 'utf8'));
+  assert.deepEqual(saved, { guilds: { guild: { waitingOpen: true } } });
+
+  const reloaded = new RotationStore(file);
+  await reloaded.load();
+  assert.deepEqual(reloaded.get('guild').players, []);
+  assert.equal(reloaded.get('guild').waitingOpen, true);
+});

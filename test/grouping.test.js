@@ -1,6 +1,8 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { createGroups, createPairHistory, recordGroups } from '../src/services/grouping.js';
+import {
+  createGroups, createPairHistory, createRandomLeaderGroups, MAX_TEAM_SIZE, recordGroups,
+} from '../src/services/grouping.js';
 
 test('creates balanced groups headed by leaders', () => {
   const groups = createGroups(['p1', 'p2', 'p3', 'p4', 'p5'], ['l1', 'l2'], {}, () => 0.5);
@@ -44,4 +46,17 @@ test('creates a fresh history containing only the latest game', () => {
 
   assert.deepEqual(previousHistory, { 'old-a:old-b': 7 });
   assert.deepEqual(latestHistory, { 'leader:player': 1 });
+});
+
+test('randomly selects one queued player to lead each four-player squad', () => {
+  const players = Array.from({ length: 9 }, (_, index) => `player-${index + 1}`);
+  const groups = createRandomLeaderGroups(players, {}, () => 0.5);
+  assert.equal(groups.length, 3);
+  assert.ok(groups.every((group) => group.length <= MAX_TEAM_SIZE));
+  assert.deepEqual([...groups.flat()].sort(), [...players].sort());
+  assert.ok(groups.every(([leader]) => players.includes(leader)));
+});
+
+test('random leader grouping requires at least one queued player', () => {
+  assert.throws(() => createRandomLeaderGroups([], {}), /at least one player/i);
 });

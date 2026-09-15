@@ -1,7 +1,9 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { createStreamScanner } from '../src/services/stream-scanner.js';
-import { addStream, normalizeStreamName, removeStream, streamUrl } from '../src/services/streams.js';
+import {
+  addStream, normalizeStreamName, removeStream, setDefaultStreamChannel, setStreamChannel, streamUrl,
+} from '../src/services/streams.js';
 
 const state = () => ({ streams: {} });
 
@@ -13,26 +15,42 @@ test('normalizes and validates supported stream accounts', () => {
   assert.equal(streamUrl('twitch', 'ff1'), 'https://www.twitch.tv/ff1');
 });
 
-test('adds and removes a unique stream with its notification channel', () => {
+test('adds, routes, and removes a unique stream', () => {
   const guild = state();
-  assert.equal(addStream(guild, 'tiktok', '@creator', 'channel').ok, true);
-  assert.equal(guild.streams['tiktok:creator'].channelId, 'channel');
+  assert.equal(addStream(guild, 'tiktok', '@creator').ok, true);
+  assert.equal(guild.streams['tiktok:creator'].channelId, null);
   assert.match(addStream(guild, 'tiktok', 'creator', 'channel').message, /already/i);
+  assert.equal(setStreamChannel(guild, 'tiktok', 'creator', 'special-channel').ok, true);
+  assert.equal(guild.streams['tiktok:creator'].channelId, 'special-channel');
+  assert.equal(setStreamChannel(guild, 'tiktok', 'creator', null).ok, true);
+  assert.equal(guild.streams['tiktok:creator'].channelId, null);
   assert.equal(removeStream(guild, 'tiktok', 'creator').ok, true);
   assert.match(removeStream(guild, 'tiktok', 'creator').message, /not being monitored/i);
+});
+
+test('changing the server default migrates legacy copied routes but preserves overrides', () => {
+  const guild = state();
+  guild.streamNotificationChannelId = 'old-default';
+  addStream(guild, 'twitch', 'inherited', 'old-default');
+  addStream(guild, 'twitch', 'overridden', 'special');
+
+  setDefaultStreamChannel(guild, 'new-default');
+  assert.equal(guild.streamNotificationChannelId, 'new-default');
+  assert.equal(guild.streams['twitch:inherited'].channelId, null);
+  assert.equal(guild.streams['twitch:overridden'].channelId, 'special');
 });
 
 test('scanner uses the guild-wide announcement channel over legacy per-stream channels', async () => {
   const guildState = state();
   guildState.streamNotificationChannelId = 'live-announcements';
-  addStream(guildState, 'tiktok', 'creator', 'old-channel');
+  addStream(guildState, 'tiktok', 'creator');
   let fetchedChannel;
+  const guild = { channels: { cache: new Map(), fetch: async (channelId) => {
+    fetchedChannel = channelId;
+    return { isTextBased: () => true, send: async () => {} };
+  } } };
   const client = {
-    guilds: { cache: new Map([['guild', {}]]) },
-    channels: { fetch: async (channelId) => {
-      fetchedChannel = channelId;
-      return { isTextBased: () => true, send: async () => {} };
-    } },
+    guilds: { cache: new Map([['guild', guild]]) },
   };
   const store = {
     get: () => structuredClone(guildState),
@@ -50,9 +68,11 @@ test('scanner announces only a new live transition and persists its state', asyn
   const guildState = state();
   addStream(guildState, 'twitch', 'creator', 'channel');
   const sent = [];
+  const guild = { channels: { cache: new Map(), fetch: async () => (
+    { isTextBased: () => true, send: async (message) => sent.push(message) }
+  ) } };
   const client = {
-    guilds: { cache: new Map([['guild', {}]]) },
-    channels: { fetch: async () => ({ isTextBased: () => true, send: async (message) => sent.push(message) }) },
+    guilds: { cache: new Map([['guild', guild]]) },
   };
   const store = {
     get: () => structuredClone(guildState),
@@ -68,4 +88,39 @@ test('scanner announces only a new live transition and persists its state', asyn
   assert.match(sent[0].content, /^@everyone .*has gone live.*https:\/\/www\.twitch\.tv\/creator/);
   assert.deepEqual(sent[0].allowedMentions, { parse: ['everyone'] });
   assert.equal(guildState.streams['twitch:creator'].isLive, true);
+});
+
+test('scanner keeps checks and alert channels isolated per server', async () => {
+  const states = new Map(['one', 'two'].map((guildId) => {
+    const guildState = state();
+    guildState.streamNotificationChannelId = `${guildId}-alerts`;
+    addStream(guildState, 'twitch', 'creator', `${guildId}-alerts`);
+    return [guildId, guildState];
+  }));
+  const sent = [];
+  const guilds = new Map([...states.keys()].map((guildId) => [guildId, {
+    channels: {
+      cache: new Map(),
+      fetch: async (channelId) => ({
+        isTextBased: () => true,
+        send: async () => sent.push([guildId, channelId]),
+      }),
+    },
+  }]));
+  const logs = [];
+  const scanner = createStreamScanner({ guilds: { cache: guilds } }, {
+    get: (guildId) => structuredClone(states.get(guildId)),
+    update: async (guildId, updater) => updater(states.get(guildId)),
+  }, {
+    twitch: async () => ({ live: true, liveId: 'live', url: 'https://www.twitch.tv/creator' }),
+  }, {
+    streamScanStarted: (guildCount, streamCount) => logs.push(['started', guildCount, streamCount]),
+    streamAlerted: (details) => logs.push(['alerted', details.guildId, details.channelId]),
+    streamScanCompleted: (streamCount, alerts) => logs.push(['completed', streamCount, alerts]),
+  });
+
+  assert.equal(await scanner.scan(), 2);
+  assert.deepEqual(sent.sort(), [['one', 'one-alerts'], ['two', 'two-alerts']]);
+  assert.deepEqual(logs[0], ['started', 2, 2]);
+  assert.deepEqual(logs.at(-1), ['completed', 2, 2]);
 });

@@ -18,7 +18,7 @@ function waitingFields(state, displayNames) {
   for (const [index, userId] of state.players.entries()) {
     const queuedAt = state.playerQueuedAt?.[userId];
     const name = displayNames.get(userId) ?? 'Unknown member';
-    const line = `${index + 1}. **${name}**\n\n└ Joined ${queuedAt ? `<t:${queuedAt}:R>` : '_before time tracking_'}\n\n`;
+    const line = `${index + 1}. **${name}**\n└ Joined ${queuedAt ? `<t:${queuedAt}:R>` : '_before time tracking_'}\n\n`;
     if (value.length + line.length > 900) {
       fields.push({ name: fields.length ? 'Waiting — continued' : `Waiting (${state.players.length})`, value });
       value = '';
@@ -61,15 +61,20 @@ const groupingPlaceholder = () => new EmbedBuilder()
 
 const squadIcons = ['1️⃣', '2️⃣', '3️⃣'];
 
-export const groupEmbeds = (groups, displayNames) => groups.map((group, index) => {
+export const groupEmbeds = (groups, displayNames, lobbyCodes = {}) => groups.map((group, index) => {
   const leader = displayNames.get(group[0]) ?? 'Unknown member';
   const players = group.slice(1);
+  const lobbyCode = lobbyCodes[group[0]];
   return new EmbedBuilder()
     .setColor(0x5865f2)
     .setTitle(`SQUAD ${String(index + 1).padStart(2, '0')}`)
     .setDescription('Your team for the latest Call of Duty rotation.')
     .addFields(
       { name: '👑  TEAM LEADER', value: `**${leader}**` },
+      {
+        name: '🔑  LOBBY CODE',
+        value: lobbyCode ? `**${escapeMarkdown(lobbyCode)}**` : '_Waiting for the leader to use `/lobby`._',
+      },
       {
         name: '🎮  SQUAD MEMBERS',
         value: players.length
@@ -80,8 +85,9 @@ export const groupEmbeds = (groups, displayNames) => groups.map((group, index) =
     .setFooter({ text: `${group.length} / 4 members  •  Squad ${index + 1} of ${groups.length}` });
 });
 
-async function resolveDisplayNames(guild, userIds) {
+async function resolveDisplayNames(guild, userIds, mockUsers = {}) {
   const entries = await Promise.all([...new Set(userIds)].map(async (userId) => {
+    if (mockUsers[userId]) return [userId, escapeMarkdown(mockUsers[userId].displayName)];
     const member = guild.members.cache.get(userId) ?? await guild.members.fetch(userId).catch(() => null);
     const name = member?.displayName ?? member?.user?.username ?? 'Unknown member';
     return [userId, escapeMarkdown(name)];
@@ -123,8 +129,59 @@ async function reconcileOverflowMessages(channel, savedIds, embeds) {
   return ids;
 }
 
+export async function clearGroupingChannel(channel) {
+  let before;
+  do {
+    const messages = await channel.messages.fetch({
+      limit: 100,
+      ...(before ? { before } : {}),
+    });
+    const page = [...messages.values()];
+    await Promise.all(page.map((message) => message.delete()));
+    before = page.at(-1)?.id;
+    if (page.length < 100) break;
+  } while (before);
+
+  return channel.send({ embeds: [groupingPlaceholder()] });
+}
+
+export function createGuildOperationQueue() {
+  const guildQueues = new Map();
+  return function enqueue(guild, operation) {
+    const previous = guildQueues.get(guild.id) ?? Promise.resolve();
+    const pending = previous.then(operation, operation);
+    const queued = pending.catch(() => {});
+    guildQueues.set(guild.id, queued);
+    return pending.finally(() => {
+      if (guildQueues.get(guild.id) === queued) guildQueues.delete(guild.id);
+    });
+  };
+}
+
+export async function removeLeaderRole(guild, leaderRole, memberId) {
+  const member = guild.members.cache.get(memberId)
+    ?? await guild.members.fetch(memberId).catch(() => null);
+  if (member?.roles.cache.has(leaderRole.id)) {
+    await member.roles.remove(leaderRole, 'Rotation completed');
+  }
+}
+
+export async function addLeaderRole(guild, leaderRole, memberId) {
+  const member = guild.members.cache.get(memberId)
+    ?? await guild.members.fetch(memberId).catch(() => null);
+  if (!member) throw new Error(`Could not find selected Rotation Leader ${memberId}.`);
+  if (!member.roles.cache.has(leaderRole.id)) {
+    await member.roles.add(leaderRole, 'Randomly selected as Rotation Leader');
+  }
+}
+
 export function createRotationUi(store) {
-  async function ensure(guild) {
+  const enqueue = createGuildOperationQueue();
+  const uiCache = new Map();
+
+  async function ensureNow(guild) {
+    const cached = uiCache.get(guild.id);
+    if (cached) return cached;
     const current = store.get(guild.id);
     let leaderRole = current.ui.leaderRoleId
       ? await guild.roles.fetch(current.ui.leaderRoleId).catch(() => null)
@@ -148,7 +205,7 @@ export function createRotationUi(store) {
     });
     const groupingPermissions = [
       { id: guild.roles.everyone.id, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.ReadMessageHistory], deny: [PermissionFlagsBits.SendMessages] },
-      { id: botId, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory] },
+      { id: botId, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory, PermissionFlagsBits.ManageMessages] },
     ];
     const groupingChannel = await findOrCreateChannel(guild, current.ui.groupingChannelId, 'grouping', {
       parent: category.id,
@@ -156,7 +213,7 @@ export function createRotationUi(store) {
       permissionOverwrites: groupingPermissions,
       reason: 'Rotation bot setup',
     });
-    if (current.ui.visibilityVersion !== 2) {
+    if (current.ui.visibilityVersion !== 3) {
       await groupingChannel.edit({
         parent: category.id,
         topic: 'Read-only team assignments for the latest rotation.',
@@ -166,10 +223,10 @@ export function createRotationUi(store) {
     }
 
     let joinMessage = await getMessage(joinChannel, current.ui.joinMessageId);
-    const displayNames = await resolveDisplayNames(guild, [...current.players, ...current.lastGroups.flat()]);
+    const displayNames = await resolveDisplayNames(guild, [...current.players, ...current.lastGroups.flat()], current.mockUsers);
     joinMessage ??= await joinChannel.send({ embeds: [waitingEmbed(guild, current, displayNames)], components: joinComponents(current.waitingOpen) });
     let groupingMessage = await getMessage(groupingChannel, current.ui.groupingMessageId);
-    const currentGroupEmbeds = groupEmbeds(current.lastGroups, displayNames);
+    const currentGroupEmbeds = groupEmbeds(current.lastGroups, displayNames, current.lobbyCodes);
     groupingMessage ??= await groupingChannel.send({
       embeds: currentGroupEmbeds.length ? currentGroupEmbeds.slice(0, 10) : [groupingPlaceholder()],
     });
@@ -195,38 +252,55 @@ export function createRotationUi(store) {
         groupingChannelId: groupingChannel.id,
         groupingMessageId: groupingMessage.id,
         groupMessageIds,
-        visibilityVersion: 2,
+        visibilityVersion: 3,
       };
     });
-    return { leaderRole, joinChannel, joinMessage, groupingChannel, groupingMessage };
+    const resources = { leaderRole, joinChannel, joinMessage, groupingChannel, groupingMessage };
+    uiCache.set(guild.id, resources);
+    return resources;
   }
 
-  async function refreshWaiting(guild) {
-    const ui = await ensure(guild);
+  async function refreshWaitingNow(guild) {
+    const ui = await ensureNow(guild);
     const state = store.get(guild.id);
-    const displayNames = await resolveDisplayNames(guild, state.players);
+    const displayNames = await resolveDisplayNames(guild, state.players, state.mockUsers);
     await ui.joinMessage.edit({ embeds: [waitingEmbed(guild, state, displayNames)], components: joinComponents(state.waitingOpen) });
   }
 
-  async function publishGroups(guild, groups) {
-    const ui = await ensure(guild);
-    const displayNames = await resolveDisplayNames(guild, groups.flat());
-    const embeds = groupEmbeds(groups, displayNames);
+  async function publishGroupsNow(guild, groups) {
+    const ui = await ensureNow(guild);
+    const state = store.get(guild.id);
+    const displayNames = await resolveDisplayNames(guild, groups.flat(), state.mockUsers);
+    const embeds = groupEmbeds(groups, displayNames, state.lobbyCodes);
     await ui.groupingMessage.edit({
       content: `Groups generated <t:${Math.floor(Date.now() / 1000)}:R>`,
       embeds: embeds.slice(0, 10),
     });
+    const groupMessageIds = await reconcileOverflowMessages(
+      ui.groupingChannel,
+      state.ui.groupMessageIds ?? [],
+      embeds,
+    );
+    if (JSON.stringify(groupMessageIds) !== JSON.stringify(state.ui.groupMessageIds ?? [])) {
+      await store.update(guild.id, (latest) => { latest.ui.groupMessageIds = groupMessageIds; });
+    }
   }
 
-  async function resetGroups(guild) {
-    const ui = await ensure(guild);
-    const overflowIds = store.get(guild.id).ui.groupMessageIds ?? [];
-    await Promise.all(overflowIds.map(async (messageId) => {
-      const message = await getMessage(ui.groupingChannel, messageId);
-      if (message) await message.delete();
-    }));
-    await ui.groupingMessage.edit({ content: null, embeds: [groupingPlaceholder()] });
-    await store.update(guild.id, (state) => { state.ui.groupMessageIds = []; });
+  async function resetGroupsNow(guild) {
+    const ui = await ensureNow(guild);
+    const groupingMessage = await clearGroupingChannel(ui.groupingChannel);
+    await store.update(guild.id, (latest) => {
+      latest.ui.groupingChannelId = ui.groupingChannel.id;
+      latest.ui.groupingMessageId = groupingMessage.id;
+      latest.ui.groupMessageIds = [];
+    });
+    uiCache.set(guild.id, { ...ui, groupingMessage });
+    return groupingMessage;
+  }
+
+  async function clearLeaderRolesNow(guild, leaderIds) {
+    const { leaderRole } = await ensureNow(guild);
+    await Promise.all(leaderIds.map((memberId) => removeLeaderRole(guild, leaderRole, memberId)));
   }
 
   async function clearLeaderRoles(guild, leaderIds) {
@@ -239,5 +313,17 @@ export function createRotationUi(store) {
     }));
   }
 
-  return { ensure, publishGroups, refreshWaiting, resetGroups, clearLeaderRoles };
+  return {
+    ensure: (guild) => enqueue(guild, () => ensureNow(guild)),
+    publishGroups: (guild, groups) => enqueue(guild, () => publishGroupsNow(guild, groups)),
+    refreshWaiting: (guild) => enqueue(guild, () => refreshWaitingNow(guild)),
+    resetGroups: (guild) => enqueue(guild, () => resetGroupsNow(guild)),
+    clearLeaderRoles: (guild, leaderIds) => enqueue(guild, () => clearLeaderRolesNow(guild, leaderIds)),
+    replaceLeaderRoles: (guild, previousLeaderIds, nextLeaderIds) => enqueue(
+      guild,
+      () => replaceLeaderRolesNow(guild, previousLeaderIds, nextLeaderIds),
+    ),
+    clearAllLeaderRoles: (guild) => enqueue(guild, () => clearAllLeaderRolesNow(guild)),
+    resetJoinRotation: (guild) => enqueue(guild, () => resetJoinRotationNow(guild)),
+  };
 }

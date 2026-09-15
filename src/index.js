@@ -20,11 +20,11 @@ const rotationUi = createRotationUi(store);
 const commandMap = new Map(commands.map((command) => [command.data.name, command]));
 const client = new Client({ intents: [GatewayIntentBits.Guilds] });
 const botStatus = createBotStatus(client, store);
+const logger = createConsoleLogger();
 const streamScanner = createStreamScanner(client, store, {
   tiktok: checkTikTok,
   twitch: createTwitchProvider(config.twitchClientId, config.twitchClientSecret),
-});
-const logger = createConsoleLogger();
+}, logger);
 const playerIdAnnouncements = {
   send: (user, callOfDutyId) => announceCallOfDutyId(
     client,

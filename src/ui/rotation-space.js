@@ -232,10 +232,10 @@ export function createRotationUi(store) {
   async function clearLeaderRoles(guild, leaderIds) {
     const { leaderRole } = await ensure(guild);
     await Promise.all(leaderIds.map(async (memberId) => {
-      const member = await guild.members.fetch(memberId).catch(() => null);
-      if (member?.roles.cache.has(leaderRole.id)) {
-        await member.roles.remove(leaderRole, 'Rotation completed');
-      }
+      const member = guild.members.cache.get(memberId)
+        ?? await guild.members.fetch(memberId).catch(() => null);
+      // Role removal is idempotent; do not trust a potentially stale role cache.
+      if (member) await member.roles.remove(leaderRole, 'New rotation opened');
     }));
   }
 

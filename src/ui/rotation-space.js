@@ -123,6 +123,26 @@ async function reconcileOverflowMessages(channel, savedIds, embeds) {
   return ids;
 }
 
+async function resolveGuildMember(guild, memberId) {
+  return guild.members.cache.get(memberId)
+    ?? await guild.members.fetch(memberId).catch(() => null);
+}
+
+export async function replaceLeaderRoleAssignments(guild, leaderRole, previousLeaderIds, nextLeaderIds) {
+  const nextLeaders = new Set(nextLeaderIds);
+  await Promise.all(previousLeaderIds
+    .filter((memberId) => !nextLeaders.has(memberId))
+    .map(async (memberId) => {
+      const member = await resolveGuildMember(guild, memberId);
+      if (member) await member.roles.remove(leaderRole, 'Rotation Leader selection changed');
+    }));
+  await Promise.all(nextLeaderIds.map(async (memberId) => {
+    const member = await resolveGuildMember(guild, memberId);
+    if (!member) throw new Error(`Could not find selected Rotation Leader ${memberId}.`);
+    await member.roles.add(leaderRole, 'Selected as a Rotation Leader');
+  }));
+}
+
 export function createRotationUi(store) {
   async function ensure(guild) {
     const current = store.get(guild.id);
@@ -232,12 +252,23 @@ export function createRotationUi(store) {
   async function clearLeaderRoles(guild, leaderIds) {
     const { leaderRole } = await ensure(guild);
     await Promise.all(leaderIds.map(async (memberId) => {
-      const member = await guild.members.fetch(memberId).catch(() => null);
-      if (member?.roles.cache.has(leaderRole.id)) {
-        await member.roles.remove(leaderRole, 'Rotation completed');
-      }
+      const member = guild.members.cache.get(memberId)
+        ?? await guild.members.fetch(memberId).catch(() => null);
+      // Role removal is idempotent; do not trust a potentially stale role cache.
+      if (member) await member.roles.remove(leaderRole, 'New rotation opened');
     }));
   }
 
-  return { ensure, publishGroups, refreshWaiting, resetGroups, clearLeaderRoles };
+  async function replaceLeaderRolesNow(guild, previousLeaderIds, nextLeaderIds) {
+    const { leaderRole } = await ensure(guild);
+    await replaceLeaderRoleAssignments(guild, leaderRole, previousLeaderIds, nextLeaderIds);
+  }
+
+  async function replaceLeaderRoles(guild, previousLeaderIds, nextLeaderIds) {
+    return replaceLeaderRolesNow(guild, previousLeaderIds, nextLeaderIds);
+  }
+
+  return {
+    ensure, publishGroups, refreshWaiting, resetGroups, clearLeaderRoles, replaceLeaderRoles,
+  };
 }

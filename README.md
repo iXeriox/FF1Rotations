@@ -50,6 +50,11 @@ Every successful `/id` update also posts a professional announcement mentioning 
 
 Waiting lists start closed. An administrator must run `/open` before players can join through either the button or `/join`. `/close` prevents new signups without removing anyone already waiting; players can still use `/leave`. Completing `/group` or using `/reset` closes the list automatically.
 
+Starting a new cycle with `/open` clears all saved leaders and removes their
+**Rotation Leader** roles before enabling signups. Queue checks use the cleared
+rotation state instead of Discord's briefly stale role cache, so every previous
+leader can immediately join the next rotation.
+
 Administrators can use `/addplayer user` to add somebody on their behalf while the waiting list is open. Manual additions follow the same duplicate and leader checks as self-service joins, record the time they were added, and immediately refresh the public queue embed.
 
 Birthday reminders are checked at startup and hourly. On a saved birthday, the bot posts a celebratory embed and mention in the configured birthdays channel exactly once that year. The default channel ID is `1545395897347612733`; set `BIRTHDAYS_CHANNEL_ID` to change it.

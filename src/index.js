@@ -89,8 +89,9 @@ async function dispatchInteraction(interaction) {
       await interaction.reply({ content: 'The rotation waiting list is currently closed.', ephemeral: true });
       return;
     }
-    const leaderRoleId = state.ui.leaderRoleId;
-    if (leaderRoleId && interaction.member.roles.cache.has(leaderRoleId)) {
+    // Stored rotation state is authoritative. Discord's member role cache can
+    // briefly retain the old role after /open and must not block re-queuing.
+    if (state.leaders.includes(interaction.user.id)) {
       await interaction.reply({ content: 'You are a Rotation Leader, so you are already included automatically.', ephemeral: true });
       return;
     }

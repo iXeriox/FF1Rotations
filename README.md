@@ -78,9 +78,10 @@ Every successful `/id` update also posts a professional announcement mentioning 
 
 Waiting lists start closed. An administrator must run `/open` before players can join through either the button or `/join`. `/close` prevents new signups without removing anyone already waiting; players can still use `/leave`. Completing `/group` or using `/reset` closes the list automatically.
 
-Opening a new waiting-list cycle clears the previous cycle's saved leaders and
-removes their **Rotation Leader** roles. Calling `/open` while signups are already
-open is a no-op, so it does not remove leaders selected for the active cycle.
+Starting a new cycle with `/open` clears all saved leaders and removes their
+**Rotation Leader** roles before enabling signups. Queue checks use the cleared
+rotation state instead of Discord's briefly stale role cache, so every previous
+leader can immediately join the next rotation.
 
 Administrators can use `/addplayer user` to add somebody on their behalf while the waiting list is open. Manual additions follow the same duplicate and leader checks as self-service joins, record the time they were added, and immediately refresh the public queue embed.
 

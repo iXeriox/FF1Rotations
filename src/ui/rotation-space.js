@@ -303,38 +303,14 @@ export function createRotationUi(store) {
     await Promise.all(leaderIds.map((memberId) => removeLeaderRole(guild, leaderRole, memberId)));
   }
 
-  async function replaceLeaderRolesNow(guild, previousLeaderIds, nextLeaderIds) {
-    const { leaderRole } = await ensureNow(guild);
-    const nextLeaders = new Set(nextLeaderIds);
-    await Promise.all(previousLeaderIds
-      .filter((memberId) => !nextLeaders.has(memberId))
-      .map((memberId) => removeLeaderRole(guild, leaderRole, memberId)));
-    await Promise.all(nextLeaderIds.map((memberId) => addLeaderRole(guild, leaderRole, memberId)));
-  }
-
-  async function clearAllLeaderRolesNow(guild) {
-    const { leaderRole } = await ensureNow(guild);
-    // Fetching the entire member list relies on the privileged Guild Members
-    // intent and can wait for a gateway chunk until Discord.js times out. Role
-    // deletion is atomic on Discord and guarantees that the assignment is
-    // removed from cached and uncached members alike.
-    await leaderRole.delete('Development rotation reset');
-    await store.update(guild.id, (state) => { delete state.ui.leaderRoleId; });
-    uiCache.delete(guild.id);
-    const replacement = await ensureNow(guild);
-    return replacement.leaderRole;
-  }
-
-  async function resetJoinRotationNow(guild) {
-    const current = store.get(guild.id);
-    const channel = current.ui.joinChannelId
-      ? await guild.channels.fetch(current.ui.joinChannelId).catch(() => null)
-      : null;
-    const message = channel ? await getMessage(channel, current.ui.joinMessageId) : null;
-    if (message) await message.delete();
-    await store.update(guild.id, (state) => { delete state.ui.joinMessageId; });
-    uiCache.delete(guild.id);
-    return ensureNow(guild);
+  async function clearLeaderRoles(guild, leaderIds) {
+    const { leaderRole } = await ensure(guild);
+    await Promise.all(leaderIds.map(async (memberId) => {
+      const member = guild.members.cache.get(memberId)
+        ?? await guild.members.fetch(memberId).catch(() => null);
+      // Role removal is idempotent; do not trust a potentially stale role cache.
+      if (member) await member.roles.remove(leaderRole, 'New rotation opened');
+    }));
   }
 
   return {

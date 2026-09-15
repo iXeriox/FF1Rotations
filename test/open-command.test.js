@@ -2,64 +2,45 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import open from '../src/commands/open.js';
 
-function createInteraction() {
-  return {
-    guildId: 'guild',
-    guild: { id: 'guild' },
-    memberPermissions: { has: () => true },
-    deferReply: async () => {},
-    editReply: async () => {},
-  };
-}
+const createInteraction = () => ({
+  guildId: 'guild',
+  guild: { id: 'guild' },
+  memberPermissions: { has: () => true },
+  deferReply: async () => {},
+});
 
-test('opening a new rotation removes old leader roles and saved leaders', async () => {
-  const state = {
-    waitingOpen: false,
-    leaders: ['leader'],
-    mockUsers: {
-      leader: { displayName: 'Mock Leader' },
-      player: { displayName: 'Mock Player' },
-    },
-  };
+test('open removes previous leader roles and clears the leader cache', async () => {
+  const state = { waitingOpen: false, leaders: ['leader'] };
+  const interaction = createInteraction();
+  interaction.editReply = async (message) => { interaction.response = message; };
   let cleared;
-  const commandInteraction = createInteraction();
-  commandInteraction.editReply = async (message) => { commandInteraction.reply = message; };
-  await open.execute(commandInteraction, {
+  await open.execute(interaction, {
     store: {
       get: () => structuredClone(state),
-      update: async (guildId, updater) => {
-        assert.equal(guildId, 'guild');
-        return updater(state);
-      },
+      update: async (guildId, updater) => updater(state),
     },
     rotationUi: {
-      clearLeaderRoles: async (guild, ids) => { cleared = [guild, ids]; },
+      clearLeaderRoles: async (guild, leaders) => { cleared = [guild, leaders]; },
       refreshWaiting: async () => {},
     },
     botStatus: { refresh: async () => {} },
   });
 
-  assert.deepEqual(cleared, [commandInteraction.guild, ['leader']]);
+  assert.deepEqual(cleared, [interaction.guild, ['leader']]);
   assert.deepEqual(state.leaders, []);
-  assert.deepEqual(state.mockUsers, { player: { displayName: 'Mock Player' } });
   assert.equal(state.waitingOpen, true);
-  assert.match(commandInteraction.reply, /Previous Rotation Leaders were cleared/);
+  assert.match(interaction.response, /can rejoin/);
 });
 
-test('opening an already-open rotation leaves active leaders unchanged', async () => {
-  const state = { waitingOpen: true, leaders: ['leader'], mockUsers: {} };
-  const commandInteraction = createInteraction();
-  commandInteraction.editReply = async (message) => { commandInteraction.reply = message; };
-  await open.execute(commandInteraction, {
-    store: {
-      get: () => structuredClone(state),
-      update: async () => assert.fail('state should not be updated'),
-    },
-    rotationUi: {
-      clearLeaderRoles: async () => assert.fail('roles should not be cleared'),
-    },
+test('open does not clear leaders from an already active cycle', async () => {
+  const state = { waitingOpen: true, leaders: ['leader'] };
+  const interaction = createInteraction();
+  interaction.editReply = async (message) => { interaction.response = message; };
+  await open.execute(interaction, {
+    store: { get: () => structuredClone(state), update: async () => assert.fail('must not update') },
+    rotationUi: { clearLeaderRoles: async () => assert.fail('must not clear roles') },
   });
 
   assert.deepEqual(state.leaders, ['leader']);
-  assert.equal(commandInteraction.reply, 'The waiting list is already open.');
+  assert.equal(interaction.response, 'The waiting list is already open.');
 });

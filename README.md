@@ -26,7 +26,7 @@ A small, modular Discord.js bot for organising event rotations. Players opt in, 
 | `/birthday help` | Everyone | Explain the birthday commands. |
 | `/birthdays` | Everyone | Show upcoming birthdays without exposing birth years. |
 | `/stream channel channel` | Manage Server | Set the single channel used for all live announcements. |
-| `/stream add platform name [channel]` | Manage Server | Monitor a user, optionally with a dedicated alert channel. |
+| `/stream add platform name [channel]` | Everyone | Add a stream to monitor, optionally with a dedicated alert channel. |
 | `/stream remove platform name` | Manage Server | Stop monitoring a streamer. |
 | `/stream route platform name [channel]` | Manage Server | Set a per-stream channel, or omit it to restore the server default. |
 | `/stream list` | Manage Server | Show monitored accounts and notification channels. |
@@ -104,6 +104,10 @@ keys or IDs. When `TWITCH_CLIENT_ID` and `TWITCH_CLIENT_SECRET` are configured,
 the official API is preferred and the public page remains a fallback. Provider checks are isolated behind
 adapters so more platforms can be added without changing commands or the scanner.
 
+Any server member can use `/stream add`; channel defaults, route changes, listings,
+and removals remain restricted to members with **Manage Server**. The bot developer
+can also set a server default with `/dev default-stream-channel`.
+
 Stream configuration, live state, and alert routing are isolated per server. Each
 scan logs its server/stream totals, provider result and duration, sent alert
 channel, failures, and final alert count to the console, making missing provider
@@ -134,7 +138,7 @@ Add another command by exporting its `data` and `execute` members, then includin
 
 ## Development
 
-The private `/dev` command provides `add-stream`, `remove-stream`, `stream-channel`,
+The private `/dev` command provides `add-stream`, `remove-stream`, `stream-channel`, `default-stream-channel`,
 `reset-join-rotations`, `clear-waiting`,
 `clear-grouping`, `close`, `open`, `add-mock-user`, `add-mock-leader`, `group`,
 and `clear-leaders` subcommands. `/dev group` runs the normal grouping

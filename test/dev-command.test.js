@@ -7,7 +7,7 @@ test('registers all private development subcommands without admin permissions', 
   assert.equal(command.name, 'dev');
   assert.equal(command.default_member_permissions, undefined);
   assert.deepEqual(command.options.map(({ name }) => name), [
-    'add-stream', 'remove-stream', 'stream-channel',
+    'add-stream', 'remove-stream', 'stream-channel', 'default-stream-channel',
     'reset-join-rotations', 'clear-waiting', 'clear-grouping', 'close',
     'open', 'add-mock-user', 'add-mock-leader', 'group', 'clear-leaders',
   ]);
@@ -116,6 +116,9 @@ test('developer can add, reroute, and remove a server-scoped stream', async () =
   };
 
   const override = { id: 'special-alerts', isTextBased: () => true };
+  const newDefault = { id: 'new-default', isTextBased: () => true };
+  assert.match(await run('default-stream-channel', newDefault), /new-default/);
+  assert.equal(state.streamNotificationChannelId, 'new-default');
   assert.match(await run('add-stream', override), /special-alerts/);
   assert.equal(state.streams['twitch:creator'].channelId, 'special-alerts');
   assert.match(await run('stream-channel', null), /default channel/);

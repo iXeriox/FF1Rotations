@@ -2,7 +2,9 @@ import { randomInt } from 'node:crypto';
 import { SlashCommandBuilder } from 'discord.js';
 import { guildOnly } from './helpers.js';
 import { generateAndPublishGroups } from './group.js';
-import { addStream, removeStream, setStreamChannel } from '../services/streams.js';
+import {
+  addStream, removeStream, setDefaultStreamChannel, setStreamChannel,
+} from '../services/streams.js';
 
 export const DEVELOPER_USER_ID = '375368296347729921';
 
@@ -33,7 +35,9 @@ function addStreamSubcommands(builder) {
     .addSubcommand((command) => command.setName('stream-channel').setDescription('Set one stream\'s alert channel.')
       .addStringOption(streamPlatform)
       .addStringOption((option) => option.setName('name').setDescription('Streamer username.').setRequired(true))
-      .addChannelOption((option) => option.setName('channel').setDescription('Override channel; omit for server default.')));
+      .addChannelOption((option) => option.setName('channel').setDescription('Override channel; omit for server default.')))
+    .addSubcommand((command) => command.setName('default-stream-channel').setDescription('Set this server\'s default stream alert channel.')
+      .addChannelOption((option) => option.setName('channel').setDescription('Default stream alert channel.').setRequired(true)));
 }
 
 function mockMember(kind, random = randomInt) {
@@ -63,6 +67,16 @@ export default {
 
     await interaction.deferReply({ ephemeral: true });
     const action = interaction.options.getSubcommand();
+    if (action === 'default-stream-channel') {
+      const channel = interaction.options.getChannel('channel', true);
+      if (!channel.isTextBased()) {
+        await interaction.editReply('Choose a text-based channel for stream alerts.');
+        return;
+      }
+      await store.update(interaction.guildId, (state) => setDefaultStreamChannel(state, channel.id));
+      await interaction.editReply(`The default stream alert channel is now <#${channel.id}>.`);
+      return;
+    }
     if (['add-stream', 'remove-stream', 'stream-channel'].includes(action)) {
       const platform = interaction.options.getString('platform', true);
       const name = interaction.options.getString('name', true);

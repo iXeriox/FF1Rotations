@@ -25,12 +25,13 @@ export default {
     .addSubcommand((command) => command.setName('list').setDescription('List monitored streams.'))
     .addSubcommand((command) => command.setName('help').setDescription('Explain stream notifications.')),
   async execute(interaction, { store, streamScanner }) {
-    if (!guildOnly(interaction) || !requireAdmin(interaction)) return;
+    if (!guildOnly(interaction)) return;
     const subcommand = interaction.options.getSubcommand();
     if (subcommand === 'help') {
       await interaction.reply({ content: 'First use `/stream channel` to select the server default, then use `/stream add`. Add an optional channel for one stream, or change it later with `/stream route`. TikTok and Twitch can be checked without credentials; Twitch API credentials are optional and improve reliability.', ephemeral: true });
       return;
     }
+    if (subcommand !== 'add' && !requireAdmin(interaction)) return;
     if (subcommand === 'channel') {
       const channel = interaction.options.getChannel('channel', true);
       if (!channel.isTextBased()) {

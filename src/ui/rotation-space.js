@@ -129,50 +129,24 @@ async function reconcileOverflowMessages(channel, savedIds, embeds) {
   return ids;
 }
 
-export async function clearGroupingChannel(channel) {
-  let before;
-  do {
-    const messages = await channel.messages.fetch({
-      limit: 100,
-      ...(before ? { before } : {}),
-    });
-    const page = [...messages.values()];
-    await Promise.all(page.map((message) => message.delete()));
-    before = page.at(-1)?.id;
-    if (page.length < 100) break;
-  } while (before);
-
-  return channel.send({ embeds: [groupingPlaceholder()] });
-}
-
-export function createGuildOperationQueue() {
-  const guildQueues = new Map();
-  return function enqueue(guild, operation) {
-    const previous = guildQueues.get(guild.id) ?? Promise.resolve();
-    const pending = previous.then(operation, operation);
-    const queued = pending.catch(() => {});
-    guildQueues.set(guild.id, queued);
-    return pending.finally(() => {
-      if (guildQueues.get(guild.id) === queued) guildQueues.delete(guild.id);
-    });
-  };
-}
-
-export async function removeLeaderRole(guild, leaderRole, memberId) {
-  const member = guild.members.cache.get(memberId)
+async function resolveGuildMember(guild, memberId) {
+  return guild.members.cache.get(memberId)
     ?? await guild.members.fetch(memberId).catch(() => null);
-  if (member?.roles.cache.has(leaderRole.id)) {
-    await member.roles.remove(leaderRole, 'Rotation completed');
-  }
 }
 
-export async function addLeaderRole(guild, leaderRole, memberId) {
-  const member = guild.members.cache.get(memberId)
-    ?? await guild.members.fetch(memberId).catch(() => null);
-  if (!member) throw new Error(`Could not find selected Rotation Leader ${memberId}.`);
-  if (!member.roles.cache.has(leaderRole.id)) {
-    await member.roles.add(leaderRole, 'Randomly selected as Rotation Leader');
-  }
+export async function replaceLeaderRoleAssignments(guild, leaderRole, previousLeaderIds, nextLeaderIds) {
+  const nextLeaders = new Set(nextLeaderIds);
+  await Promise.all(previousLeaderIds
+    .filter((memberId) => !nextLeaders.has(memberId))
+    .map(async (memberId) => {
+      const member = await resolveGuildMember(guild, memberId);
+      if (member) await member.roles.remove(leaderRole, 'Rotation Leader selection changed');
+    }));
+  await Promise.all(nextLeaderIds.map(async (memberId) => {
+    const member = await resolveGuildMember(guild, memberId);
+    if (!member) throw new Error(`Could not find selected Rotation Leader ${memberId}.`);
+    await member.roles.add(leaderRole, 'Selected as a Rotation Leader');
+  }));
 }
 
 export function createRotationUi(store) {
@@ -313,17 +287,16 @@ export function createRotationUi(store) {
     }));
   }
 
+  async function replaceLeaderRolesNow(guild, previousLeaderIds, nextLeaderIds) {
+    const { leaderRole } = await ensure(guild);
+    await replaceLeaderRoleAssignments(guild, leaderRole, previousLeaderIds, nextLeaderIds);
+  }
+
+  async function replaceLeaderRoles(guild, previousLeaderIds, nextLeaderIds) {
+    return replaceLeaderRolesNow(guild, previousLeaderIds, nextLeaderIds);
+  }
+
   return {
-    ensure: (guild) => enqueue(guild, () => ensureNow(guild)),
-    publishGroups: (guild, groups) => enqueue(guild, () => publishGroupsNow(guild, groups)),
-    refreshWaiting: (guild) => enqueue(guild, () => refreshWaitingNow(guild)),
-    resetGroups: (guild) => enqueue(guild, () => resetGroupsNow(guild)),
-    clearLeaderRoles: (guild, leaderIds) => enqueue(guild, () => clearLeaderRolesNow(guild, leaderIds)),
-    replaceLeaderRoles: (guild, previousLeaderIds, nextLeaderIds) => enqueue(
-      guild,
-      () => replaceLeaderRolesNow(guild, previousLeaderIds, nextLeaderIds),
-    ),
-    clearAllLeaderRoles: (guild) => enqueue(guild, () => clearAllLeaderRolesNow(guild)),
-    resetJoinRotation: (guild) => enqueue(guild, () => resetJoinRotationNow(guild)),
+    ensure, publishGroups, refreshWaiting, resetGroups, clearLeaderRoles, replaceLeaderRoles,
   };
 }

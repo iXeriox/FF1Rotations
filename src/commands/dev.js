@@ -152,7 +152,7 @@ export default {
     if (action === 'open') {
       const current = store.get(interaction.guildId);
       const openingNewCycle = !current.waitingOpen;
-      if (openingNewCycle) await rotationUi.clearLeaderRoles(interaction.guild, current.leaders);
+      if (openingNewCycle)     await rotationUi.clearAllLeaderRoles(interaction.guild);
       await store.update(interaction.guildId, (state) => {
         if (!state.waitingOpen) {
           const previousLeaders = new Set(state.leaders);

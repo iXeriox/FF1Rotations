@@ -12,7 +12,7 @@ export default {
       await interaction.editReply('The waiting list is already open.');
       return;
     }
-    await rotationUi.clearLeaderRoles(interaction.guild, current.leaders);
+    await rotationUi.clearAllLeaderRoles(interaction.guild);
     const changed = await store.update(interaction.guildId, (state) => {
       if (state.waitingOpen) return false;
       const previousLeaders = new Set(state.leaders);

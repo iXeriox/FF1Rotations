@@ -17,7 +17,7 @@ A small, modular Discord.js bot for organising event rotations. Players opt in, 
 | `/group` | Manage Server | Generate groups with randomly selected leaders, publish them, and clear signups. |
 | `/groupold` | Manage Server | Generate groups using leaders previously selected with `/addleader`. |
 | `/lobby code` | Current group leaders | Publish or update the lobby code shown to their latest squad. |
-| `/meta mode` | Everyone | Open current community meta loadouts and official balance notes for a selected game mode. |
+| `/meta mode` | Everyone | Show the top weapons in every class, share codes, live builds, and balance notes for a selected mode. |
 | `/reset [history]` | Manage Server | Clear signups, optionally also clearing match history. |
 | `/commend user` | Everyone | Give one commendation to a teammate from the latest rotation. |
 | `/stats user` | Everyone | Show commendations, rotation count, and last rotation time. |

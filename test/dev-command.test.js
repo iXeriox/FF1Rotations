@@ -8,9 +8,25 @@ test('registers all private development subcommands without admin permissions', 
   assert.equal(command.default_member_permissions, undefined);
   assert.deepEqual(command.options.map(({ name }) => name), [
     'add-stream', 'remove-stream', 'stream-channel', 'default-stream-channel',
-    'reset-join-rotations', 'clear-waiting', 'clear-grouping', 'close',
+    'reset-join-rotations', 'clear-waiting', 'clear-grouping', 'remove-threading', 'close',
     'open', 'add-mock-user', 'add-mock-leader', 'group', 'clear-leaders',
   ]);
+});
+
+test('developer can disable threading and remove existing rotation threads', async () => {
+  const interaction = {
+    guildId: 'guild', guild: { id: 'guild' }, user: { id: DEVELOPER_USER_ID },
+    options: { getSubcommand: () => 'remove-threading' },
+    deferReply: async () => {},
+    editReply: async (message) => { interaction.reply = message; },
+  };
+  await dev.execute(interaction, {
+    rotationUi: { removeThreading: async (guild) => {
+      assert.equal(guild.id, 'guild');
+      return 3;
+    } },
+  });
+  assert.equal(interaction.reply, 'Threading is disabled in the rotation chats. Removed 3 existing threads.');
 });
 
 test('rejects anyone other than the configured developer before deferring', async () => {

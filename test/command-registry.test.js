@@ -14,7 +14,7 @@ test('exports the developer command in the deployed registry', () => {
   assert.ok(dev, 'dev command must be in the deployed registry');
   assert.deepEqual(dev.options.map(({ name }) => name), [
     'add-stream', 'remove-stream', 'stream-channel', 'default-stream-channel',
-    'reset-join-rotations', 'clear-waiting', 'clear-grouping', 'close',
+    'reset-join-rotations', 'clear-waiting', 'clear-grouping', 'remove-threading', 'close',
     'open', 'add-mock-user', 'add-mock-leader', 'group', 'clear-leaders',
   ]);
 });

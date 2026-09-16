@@ -33,13 +33,13 @@ test('opening a new rotation removes old leader roles and saved leaders', async 
       },
     },
     rotationUi: {
-      clearLeaderRoles: async (guild, ids) => { cleared = [guild, ids]; },
+      clearAllLeaderRoles: async (guild) => { cleared = guild; },
       refreshWaiting: async () => {},
     },
     botStatus: { refresh: async () => {} },
   });
 
-  assert.deepEqual(cleared, [commandInteraction.guild, ['leader']]);
+  assert.equal(cleared, commandInteraction.guild);
   assert.deepEqual(state.leaders, []);
   assert.deepEqual(state.mockUsers, { player: { displayName: 'Mock Player' } });
   assert.equal(state.waitingOpen, true);
@@ -56,7 +56,7 @@ test('opening an already-open rotation leaves active leaders unchanged', async (
       update: async () => assert.fail('state should not be updated'),
     },
     rotationUi: {
-      clearLeaderRoles: async () => assert.fail('roles should not be cleared'),
+      clearAllLeaderRoles: async () => assert.fail('roles should not be cleared'),
     },
   });
 

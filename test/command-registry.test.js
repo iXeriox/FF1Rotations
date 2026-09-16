@@ -25,6 +25,14 @@ test('exports the lobby command in the deployed registry', () => {
   assert.deepEqual(lobby.options.map(({ name }) => name), ['code']);
 });
 
+test('exports the meta command in the deployed registry', () => {
+  const meta = commands.find((command) => command.data.name === 'meta')?.data.toJSON();
+  assert.ok(meta, 'meta command must be in the deployed registry');
+  assert.deepEqual(meta.options[0].choices.map(({ value }) => value), [
+    'resurgence', 'battle-royale', 'multiplayer', 'ranked', 'zombies',
+  ]);
+});
+
 test('exports separate random and administrator-selected grouping commands', () => {
   const group = commands.find((command) => command.data.name === 'group')?.data.toJSON();
   const groupold = commands.find((command) => command.data.name === 'groupold')?.data.toJSON();

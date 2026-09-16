@@ -1,10 +1,24 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { PermissionFlagsBits } from 'discord.js';
 import {
-  addLeaderRole, clearGroupingChannel, createGuildOperationQueue, groupEmbeds, removeLeaderRole, waitingEmbed,
+  addLeaderRole, clearGroupingChannel, createGuildOperationQueue, groupEmbeds, removeChannelThreads,
+  removeLeaderRole, rotationChannelPermissions, waitingEmbed,
 } from '../src/ui/rotation-space.js';
 
 const names = new Map([['leader-id', 'Leader Name'], ['player-id', 'Player Name']]);
+
+test('rotation chat permissions disable creating and replying to threads', () => {
+  const permissions = rotationChannelPermissions({ roles: { everyone: { id: 'everyone' } } }, 'bot');
+  assert.deepEqual(permissions[0].deny, [
+    PermissionFlagsBits.SendMessages,
+    PermissionFlagsBits.CreatePublicThreads,
+    PermissionFlagsBits.CreatePrivateThreads,
+    PermissionFlagsBits.SendMessagesInThreads,
+  ]);
+  assert.ok(permissions[1].allow.includes(PermissionFlagsBits.ManageThreads));
+  assert.deepEqual(permissions[1].deny, permissions[0].deny.slice(1));
+});
 
 test('queue embed uses display names and relative signup times without raw mentions', () => {
   const embed = waitingEmbed(
@@ -61,6 +75,23 @@ test('grouping reset deletes every page of chat history and posts one fresh plac
   assert.equal(deleted.length, 101);
   assert.equal(result.id, 'new-message');
   assert.equal(sent.embeds[0].toJSON().title, 'Rotation groups');
+});
+
+test('thread cleanup removes active and archived threads without deleting duplicates twice', async () => {
+  const deleted = [];
+  const thread = (id) => ({ id, archiveTimestamp: Number(id), delete: async () => deleted.push(id) });
+  const active = thread('3');
+  const archived = thread('2');
+  const channel = { threads: {
+    fetchActive: async () => ({ threads: new Map([[active.id, active]]) }),
+    fetchArchived: async ({ type }) => ({
+      threads: new Map(type === 'public' ? [[active.id, active], [archived.id, archived]] : []),
+      hasMore: false,
+    }),
+  } };
+
+  assert.equal(await removeChannelThreads(channel), 2);
+  assert.deepEqual(deleted.sort(), ['2', '3']);
 });
 
 test('rotation UI operations for one guild execute one at a time', async () => {

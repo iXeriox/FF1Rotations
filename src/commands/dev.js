@@ -12,6 +12,7 @@ const subcommands = [
   ['reset-join-rotations', 'Recreate the managed join-rotation message.'],
   ['clear-waiting', 'Remove everyone from the waiting list.'],
   ['clear-grouping', 'Empty the grouping chat and restore its required embed.'],
+  ['remove-threading', 'Disable threading and remove threads from rotation chats.'],
   ['close', 'Close and completely reset the current rotation.'],
   ['open', 'Open the rotation waiting list.'],
   ['add-mock-user', 'Add a randomly generated mock player.'],
@@ -131,6 +132,11 @@ export default {
       });
       await rotationUi.resetGroups(interaction.guild);
       await interaction.editReply('The grouping chat was cleared and its default embed was reposted.');
+      return;
+    }
+    if (action === 'remove-threading') {
+      const removed = await rotationUi.removeThreading(interaction.guild);
+      await interaction.editReply(`Threading is disabled in the rotation chats. Removed ${removed} existing thread${removed === 1 ? '' : 's'}.`);
       return;
     }
     if (action === 'close') {

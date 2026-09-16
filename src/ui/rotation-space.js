@@ -10,6 +10,31 @@ import {
 
 export const JOIN_BUTTON_ID = 'rotation:join';
 
+const disabledThreadPermissions = [
+  PermissionFlagsBits.CreatePublicThreads,
+  PermissionFlagsBits.CreatePrivateThreads,
+  PermissionFlagsBits.SendMessagesInThreads,
+];
+
+export const rotationChannelPermissions = (guild, botId, { manageMessages = false } = {}) => [
+  {
+    id: guild.roles.everyone.id,
+    allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.ReadMessageHistory],
+    deny: [PermissionFlagsBits.SendMessages, ...disabledThreadPermissions],
+  },
+  {
+    id: botId,
+    allow: [
+      PermissionFlagsBits.ViewChannel,
+      PermissionFlagsBits.SendMessages,
+      PermissionFlagsBits.ReadMessageHistory,
+      PermissionFlagsBits.ManageThreads,
+      ...(manageMessages ? [PermissionFlagsBits.ManageMessages] : []),
+    ],
+    deny: disabledThreadPermissions,
+  },
+];
+
 function waitingFields(state, displayNames) {
   if (!state.players.length) return [{ name: 'Waiting (0)', value: '_Nobody is waiting yet._' }];
   const fields = [];
@@ -145,6 +170,32 @@ export async function clearGroupingChannel(channel) {
   return channel.send({ embeds: [groupingPlaceholder()] });
 }
 
+export async function removeChannelThreads(channel) {
+  const found = new Map();
+  const active = await channel.threads.fetchActive();
+  for (const thread of active.threads.values()) found.set(thread.id, thread);
+
+  for (const type of ['public', 'private']) {
+    let before;
+    let hasMore = true;
+    while (hasMore) {
+      const archived = await channel.threads.fetchArchived({
+        type,
+        limit: 100,
+        ...(type === 'private' ? { fetchAll: true } : {}),
+        ...(before ? { before } : {}),
+      });
+      const threads = [...archived.threads.values()];
+      for (const thread of threads) found.set(thread.id, thread);
+      hasMore = archived.hasMore && threads.length > 0;
+      before = threads.at(-1)?.archiveTimestamp;
+    }
+  }
+
+  await Promise.all([...found.values()].map((thread) => thread.delete('Threading is disabled in rotation channels')));
+  return found.size;
+}
+
 export function createGuildOperationQueue() {
   const guildQueues = new Map();
   return function enqueue(guild, operation) {
@@ -194,19 +245,14 @@ export function createRotationUi(store) {
     category ??= await guild.channels.create({ name: 'Rotations', type: ChannelType.GuildCategory, reason: 'Rotation bot setup' });
 
     const botId = guild.members.me.id;
+    const joinPermissions = rotationChannelPermissions(guild, botId);
     const joinChannel = await findOrCreateChannel(guild, current.ui.joinChannelId, 'join-rotation', {
       parent: category.id,
       topic: 'Join the waiting list for the next rotation.',
-      permissionOverwrites: [
-        { id: guild.roles.everyone.id, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.ReadMessageHistory], deny: [PermissionFlagsBits.SendMessages] },
-        { id: botId, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory] },
-      ],
+      permissionOverwrites: joinPermissions,
       reason: 'Rotation bot setup',
     });
-    const groupingPermissions = [
-      { id: guild.roles.everyone.id, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.ReadMessageHistory], deny: [PermissionFlagsBits.SendMessages] },
-      { id: botId, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory, PermissionFlagsBits.ManageMessages] },
-    ];
+    const groupingPermissions = rotationChannelPermissions(guild, botId, { manageMessages: true });
     const groupingChannel = await findOrCreateChannel(guild, current.ui.groupingChannelId, 'grouping', {
       parent: category.id,
       topic: 'Read-only team assignments for the latest rotation.',
@@ -337,6 +383,26 @@ export function createRotationUi(store) {
     return ensureNow(guild);
   }
 
+  async function removeThreadingNow(guild) {
+    const ui = await ensureNow(guild);
+    const botId = guild.members.me.id;
+    await Promise.all([
+      ui.joinChannel.edit({
+        permissionOverwrites: rotationChannelPermissions(guild, botId),
+        reason: 'Disable threading in rotation channels',
+      }),
+      ui.groupingChannel.edit({
+        permissionOverwrites: rotationChannelPermissions(guild, botId, { manageMessages: true }),
+        reason: 'Disable threading in rotation channels',
+      }),
+    ]);
+    const removed = await Promise.all([
+      removeChannelThreads(ui.joinChannel),
+      removeChannelThreads(ui.groupingChannel),
+    ]);
+    return removed.reduce((total, count) => total + count, 0);
+  }
+
   return {
     ensure: (guild) => enqueue(guild, () => ensureNow(guild)),
     publishGroups: (guild, groups) => enqueue(guild, () => publishGroupsNow(guild, groups)),
@@ -349,5 +415,6 @@ export function createRotationUi(store) {
     ),
     clearAllLeaderRoles: (guild) => enqueue(guild, () => clearAllLeaderRolesNow(guild)),
     resetJoinRotation: (guild) => enqueue(guild, () => resetJoinRotationNow(guild)),
+    removeThreading: (guild) => enqueue(guild, () => removeThreadingNow(guild)),
   };
 }

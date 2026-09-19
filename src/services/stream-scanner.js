@@ -41,7 +41,11 @@ export function createStreamScanner(client, store, providers, logger = {}) {
       logger.streamChecked?.({
         guildId, platform: stream.platform, name: stream.name, live: result.live, durationMs: performance.now() - startedAt,
       });
-      const newlyLive = result.live && (!stream.isLive || stream.liveId !== result.liveId);
+      // Twitch can occasionally report an active stream as offline for a single
+      // check. It can also return different identifiers depending on whether the
+      // API or public-page fallback answered. Only a confirmed offline-to-live
+      // transition should produce another alert.
+      const newlyLive = result.live && !stream.isLive;
       if (newlyLive) {
         const guild = client.guilds.cache.get(guildId);
         const channel = guild?.channels.cache.get(stream.channelId)
@@ -56,8 +60,17 @@ export function createStreamScanner(client, store, providers, logger = {}) {
       await store.update(guildId, (state) => {
         const latest = state.streams[key];
         if (!latest) return;
-        latest.isLive = result.live;
-        latest.liveId = result.liveId;
+        if (stream.platform === 'twitch' && !result.live && latest.isLive) {
+          latest.consecutiveOfflineChecks = (latest.consecutiveOfflineChecks ?? 0) + 1;
+          if (latest.consecutiveOfflineChecks >= 3) {
+            latest.isLive = false;
+            latest.liveId = null;
+          }
+        } else {
+          latest.isLive = result.live;
+          latest.liveId = result.liveId;
+          latest.consecutiveOfflineChecks = 0;
+        }
         latest.lastCheckedAt = Math.floor(Date.now() / 1000);
       });
       return newlyLive ? 1 : 0;

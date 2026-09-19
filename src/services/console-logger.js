@@ -10,7 +10,16 @@ function context(interaction) {
 
 export function createConsoleLogger(output = console, now = () => new Date()) {
   const prefix = (level) => `[${now().toISOString()}] [${level}]`;
+  const singleLine = (value) => String(value ?? '').replace(/[\r\n]+/g, ' ').trim();
   return {
+    chatMessage(message) {
+      const chatName = singleLine(message.channel?.name) || message.channelId || 'unknown';
+      const userName = singleLine(message.member?.displayName ?? message.author?.username)
+        || message.author?.id
+        || 'unknown';
+      const content = singleLine(message.content) || '[no text content]';
+      output.info(`${now().toISOString()} [${chatName}] - <${userName}> ${content}`);
+    },
     interactionStarted(interaction) {
       output.info(`${prefix('INTERACTION')} started ${context(interaction)}`);
     },

@@ -38,6 +38,7 @@ const playerIdAnnouncements = {
 
 client.once(Events.ClientReady, async (readyClient) => {
   logger.system(`Ready as ${readyClient.user.tag}.`);
+  logger.system('Conversation logging is active for server messages.');
   try {
     logger.system(await syncCommands(readyClient, commands, config.guildId));
   } catch (error) {
@@ -62,7 +63,7 @@ client.on(Events.GuildCreate, (guild) => {
   void syncCommands(client, commands, guild.id).catch((error) => console.error(`Could not register commands in ${guild.name}:`, error));
 });
 client.on(Events.MessageCreate, (message) => {
-  if (!message.author.bot) logger.chatMessage(message);
+  logger.chatMessage(message);
 });
 client.on(Events.InteractionCreate, (interaction) => {
   void handleInteraction(interaction).catch(async (error) => {

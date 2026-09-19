@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { ChannelType, Collection } from 'discord.js';
 import dev, { DEVELOPER_USER_ID } from '../src/commands/dev.js';
 
 test('registers all private development subcommands without admin permissions', () => {
@@ -8,9 +9,59 @@ test('registers all private development subcommands without admin permissions', 
   assert.equal(command.default_member_permissions, undefined);
   assert.deepEqual(command.options.map(({ name }) => name), [
     'add-stream', 'remove-stream', 'stream-channel', 'default-stream-channel',
+    'idother', 'categories', 'chats',
     'reset-join-rotations', 'clear-waiting', 'clear-grouping', 'remove-threading', 'close',
     'open', 'add-mock-user', 'add-mock-leader', 'group', 'clear-leaders',
   ]);
+});
+
+test('developer can set another member Activision ID', async () => {
+  const state = {};
+  const user = { id: 'member', bot: false, toString: () => '<@member>' };
+  let announcement;
+  const interaction = {
+    guildId: 'guild', guild: {}, user: { id: DEVELOPER_USER_ID },
+    options: {
+      getSubcommand: () => 'idother',
+      getUser: () => user,
+      getString: () => 'Member # 123',
+    },
+    deferReply: async () => {},
+    editReply: async (message) => { interaction.reply = message; },
+  };
+
+  await dev.execute(interaction, {
+    store: { update: async (_guildId, updater) => updater(state) },
+    playerIdAnnouncements: { send: async (...args) => { announcement = args; return true; } },
+  });
+
+  assert.equal(state.callOfDutyIds.member, 'Member#123');
+  assert.deepEqual(announcement, [user, 'Member#123']);
+  assert.match(interaction.reply, /<@member>.*Member#123/);
+});
+
+test('developer can list server categories and channels within a category', async () => {
+  const category = { id: 'category', name: 'Games', rawPosition: 1, type: ChannelType.GuildCategory };
+  const channels = new Collection([
+    [category.id, category],
+    ['chat', { id: 'chat', name: 'rotation-chat', parentId: category.id, rawPosition: 2, type: ChannelType.GuildText }],
+    ['other', { id: 'other', name: 'other-chat', parentId: null, rawPosition: 3, type: ChannelType.GuildText }],
+  ]);
+  const run = async (action) => {
+    const interaction = {
+      guildId: 'guild', guild: { channels: { fetch: async () => channels } }, user: { id: DEVELOPER_USER_ID },
+      options: { getSubcommand: () => action, getChannel: () => category },
+      deferReply: async () => {},
+      editReply: async (message) => { interaction.reply = message; },
+    };
+    await dev.execute(interaction, {});
+    return interaction.reply;
+  };
+
+  assert.match(await run('categories'), /Server categories.*Games/s);
+  const chatReply = await run('chats');
+  assert.match(chatReply, /Channels in Games.*rotation-chat/s);
+  assert.doesNotMatch(chatReply, /other-chat/);
 });
 
 test('developer can disable threading and remove existing rotation threads', async () => {

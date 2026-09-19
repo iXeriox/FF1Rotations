@@ -90,6 +90,61 @@ test('scanner announces only a new live transition and persists its state', asyn
   assert.equal(guildState.streams['twitch:creator'].isLive, true);
 });
 
+test('scanner requires three consecutive Twitch offline checks before allowing another alert', async () => {
+  const guildState = state();
+  addStream(guildState, 'twitch', 'creator', 'channel');
+  const results = [
+    { live: true, liveId: 'api-id' },
+    { live: false, liveId: null },
+    { live: true, liveId: 'page-start-date' },
+    { live: false, liveId: null },
+    { live: false, liveId: null },
+    { live: false, liveId: null },
+    { live: true, liveId: 'new-api-id' },
+  ];
+  const sent = [];
+  const guild = { channels: { cache: new Map(), fetch: async () => ({
+    isTextBased: () => true,
+    send: async (message) => sent.push(message),
+  }) } };
+  const store = {
+    get: () => structuredClone(guildState),
+    update: async (_guildId, updater) => updater(guildState),
+  };
+  const scanner = createStreamScanner({ guilds: { cache: new Map([['guild', guild]]) } }, store, {
+    twitch: async () => ({ ...results.shift(), url: 'https://www.twitch.tv/creator' }),
+  });
+
+  assert.equal(await scanner.scan(), 1);
+  assert.equal(await scanner.scan(), 0);
+  assert.equal(guildState.streams['twitch:creator'].isLive, true);
+  assert.equal(await scanner.scan(), 0, 'a recovered stream must not be reposted when its provider ID changes');
+  assert.equal(guildState.streams['twitch:creator'].consecutiveOfflineChecks, 0);
+  assert.equal(await scanner.scan(), 0);
+  assert.equal(await scanner.scan(), 0);
+  assert.equal(guildState.streams['twitch:creator'].isLive, true);
+  assert.equal(await scanner.scan(), 0);
+  assert.equal(guildState.streams['twitch:creator'].isLive, false);
+  assert.equal(await scanner.scan(), 1);
+  assert.equal(sent.length, 2);
+});
+
+test('scanner applies offline results immediately for TikTok', async () => {
+  const guildState = state();
+  addStream(guildState, 'tiktok', 'creator', 'channel');
+  guildState.streams['tiktok:creator'].isLive = true;
+  const store = {
+    get: () => structuredClone(guildState),
+    update: async (_guildId, updater) => updater(guildState),
+  };
+  const scanner = createStreamScanner({ guilds: { cache: new Map([['guild', {}]]) } }, store, {
+    tiktok: async () => ({ live: false, liveId: null, url: 'https://www.tiktok.com/@creator/live' }),
+  });
+
+  await scanner.scan();
+  assert.equal(guildState.streams['tiktok:creator'].isLive, false);
+});
+
 test('scanner keeps checks and alert channels isolated per server', async () => {
   const states = new Map(['one', 'two'].map((guildId) => {
     const guildState = state();

@@ -18,7 +18,9 @@ await store.load();
 const rotationUi = createRotationUi(store);
 
 const commandMap = new Map(commands.map((command) => [command.data.name, command]));
-const client = new Client({ intents: [GatewayIntentBits.Guilds] });
+const client = new Client({
+  intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent],
+});
 const botStatus = createBotStatus(client, store);
 const logger = createConsoleLogger();
 const streamScanner = createStreamScanner(client, store, {
@@ -36,6 +38,7 @@ const playerIdAnnouncements = {
 
 client.once(Events.ClientReady, async (readyClient) => {
   logger.system(`Ready as ${readyClient.user.tag}.`);
+  logger.system('Conversation logging is active for server messages.');
   try {
     logger.system(await syncCommands(readyClient, commands, config.guildId));
   } catch (error) {
@@ -58,6 +61,9 @@ client.once(Events.ClientReady, async (readyClient) => {
 client.on(Events.GuildCreate, (guild) => {
   void rotationUi.ensure(guild).catch((error) => console.error(`Could not set up ${guild.name}:`, error));
   void syncCommands(client, commands, guild.id).catch((error) => console.error(`Could not register commands in ${guild.name}:`, error));
+});
+client.on(Events.MessageCreate, (message) => {
+  logger.chatMessage(message);
 });
 client.on(Events.InteractionCreate, (interaction) => {
   void handleInteraction(interaction).catch(async (error) => {

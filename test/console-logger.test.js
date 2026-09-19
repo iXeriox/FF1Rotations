@@ -13,6 +13,45 @@ const interaction = {
   user: { id: 'user' },
 };
 
+test('logs guild conversations in a compact single-line format', () => {
+  const messages = [];
+  const logger = createConsoleLogger(
+    { info: (message) => messages.push(message) },
+    () => new Date('2026-09-19T15:30:00Z'),
+  );
+
+  logger.chatMessage({
+    author: { id: 'user-id', username: 'username' },
+    channel: { name: 'general' },
+    channelId: 'channel-id',
+    content: 'First line\nSecond line',
+    member: { displayName: 'Display Name' },
+  });
+
+  assert.equal(messages[0], '2026-09-19T15:30:00.000Z [general] - <Display Name> First line Second line');
+});
+
+test('warns once when Discord does not provide message content', () => {
+  const messages = [];
+  const warnings = [];
+  const logger = createConsoleLogger({
+    info: (message) => messages.push(message),
+    warn: (message) => warnings.push(message),
+  }, () => new Date('2026-09-19T15:30:00Z'));
+  const message = {
+    author: { id: 'user-id', username: 'username' },
+    channel: { name: 'general' },
+    content: '',
+  };
+
+  logger.chatMessage(message);
+  logger.chatMessage(message);
+
+  assert.match(messages[0], /\[general\] - <username> \[no text content\]/);
+  assert.equal(warnings.length, 1);
+  assert.match(warnings[0], /Enable the Message Content Intent/);
+});
+
 test('logs command lifecycle context without command option values', () => {
   const messages = [];
   const output = {

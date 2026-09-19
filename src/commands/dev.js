@@ -1,7 +1,10 @@
 import { randomInt } from 'node:crypto';
-import { SlashCommandBuilder } from 'discord.js';
-import { guildOnly } from './helpers.js';
+import {
+  ChannelType, SlashCommandBuilder, escapeMarkdown,
+} from 'discord.js';
+import { guildOnly, mention } from './helpers.js';
 import { generateAndPublishGroups } from './group.js';
+import { setCallOfDutyId } from '../services/player-ids.js';
 import {
   addStream, removeStream, setDefaultStreamChannel, setStreamChannel,
 } from '../services/streams.js';
@@ -38,7 +41,22 @@ function addStreamSubcommands(builder) {
       .addStringOption((option) => option.setName('name').setDescription('Streamer username.').setRequired(true))
       .addChannelOption((option) => option.setName('channel').setDescription('Override channel; omit for server default.')))
     .addSubcommand((command) => command.setName('default-stream-channel').setDescription('Set this server\'s default stream alert channel.')
-      .addChannelOption((option) => option.setName('channel').setDescription('Default stream alert channel.').setRequired(true)));
+      .addChannelOption((option) => option.setName('channel').setDescription('Default stream alert channel.').setRequired(true)))
+    .addSubcommand((command) => command.setName('idother').setDescription("Set another member's Activision ID.")
+      .addUserOption((option) => option.setName('user').setDescription('Member to update.').setRequired(true))
+      .addStringOption((option) => option.setName('activisionid').setDescription('Activision ID.').setMaxLength(100).setRequired(true)))
+    .addSubcommand((command) => command.setName('categories').setDescription('Show the categories found in this server.'))
+    .addSubcommand((command) => command.setName('chats').setDescription('Show the channels found in a category.')
+      .addChannelOption((option) => option.setName('category').setDescription('Category to inspect.')
+        .addChannelTypes(ChannelType.GuildCategory).setRequired(true)));
+}
+
+function channelList(title, channels) {
+  const lines = [...channels]
+    .sort((left, right) => left.rawPosition - right.rawPosition || left.name.localeCompare(right.name))
+    .map((channel) => `• **${escapeMarkdown(channel.name)}** (ID: ${channel.id})`);
+  const content = `**${title}**\n${lines.length ? lines.join('\n') : 'None found.'}`;
+  return content.length <= 2_000 ? content : `${content.slice(0, 1_970)}\n…list truncated`;
 }
 
 function mockMember(kind, random = randomInt) {
@@ -59,7 +77,9 @@ export default {
     (builder, [name, description]) => builder.addSubcommand((command) => command.setName(name).setDescription(description)),
     addStreamSubcommands(new SlashCommandBuilder().setName('dev').setDescription('Private bot development utilities.')),
   ),
-  async execute(interaction, { store, rotationUi, botStatus, streamScanner }) {
+  async execute(interaction, {
+    store, rotationUi, botStatus, streamScanner, playerIdAnnouncements,
+  }) {
     if (!guildOnly(interaction)) return;
     if (interaction.user.id !== DEVELOPER_USER_ID) {
       await interaction.reply({ content: 'This command is restricted to the bot developer.', ephemeral: true });
@@ -68,6 +88,38 @@ export default {
 
     await interaction.deferReply({ ephemeral: true });
     const action = interaction.options.getSubcommand();
+    if (action === 'idother') {
+      const user = interaction.options.getUser('user', true);
+      if (user.bot) {
+        await interaction.editReply('Bots cannot have an Activision ID.');
+        return;
+      }
+      const result = await store.update(interaction.guildId, (state) => (
+        setCallOfDutyId(state, user.id, interaction.options.getString('activisionid', true))
+      ));
+      const announced = result.ok ? await playerIdAnnouncements.send(user, result.id) : false;
+      await interaction.editReply(result.ok
+        ? `${mention(user.id)}'s Activision ID is now **${escapeMarkdown(result.id)}**.${announced ? '' : ' It was saved, but the announcement channel is unavailable.'}`
+        : result.message);
+      return;
+    }
+    if (action === 'categories') {
+      const channels = await interaction.guild.channels.fetch();
+      await interaction.editReply(channelList(
+        'Server categories',
+        channels.filter((channel) => channel?.type === ChannelType.GuildCategory).values(),
+      ));
+      return;
+    }
+    if (action === 'chats') {
+      const category = interaction.options.getChannel('category', true);
+      const channels = await interaction.guild.channels.fetch();
+      await interaction.editReply(channelList(
+        `Channels in ${category.name}`,
+        channels.filter((channel) => channel?.parentId === category.id).values(),
+      ));
+      return;
+    }
     if (action === 'default-stream-channel') {
       const channel = interaction.options.getChannel('channel', true);
       if (!channel.isTextBased()) {

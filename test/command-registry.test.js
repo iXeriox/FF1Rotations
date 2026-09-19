@@ -2,6 +2,12 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { commands } from '../src/commands/index.js';
 
+test('exports the staff idother command in the deployed registry', () => {
+  const idother = commands.find((command) => command.data.name === 'idother')?.data.toJSON();
+  assert.ok(idother, 'idother command must be in the deployed registry');
+  assert.equal(idother.default_member_permissions, '32');
+});
+
 test('exports a visible stream command with all management subcommands', () => {
   const stream = commands.find((command) => command.data.name === 'stream')?.data.toJSON();
   assert.ok(stream, 'stream command must be in the deployed registry');

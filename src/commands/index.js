@@ -8,6 +8,7 @@ import dev from './dev.js';
 import group from './group.js';
 import groupold from './groupold.js';
 import id from './id.js';
+import idother from './idother.js';
 import join from './join.js';
 import leave from './leave.js';
 import lobby from './lobby.js';
@@ -19,5 +20,5 @@ import stats from './stats.js';
 import stream from './stream.js';
 
 export const commands = [
-  join, leave, open, close, addplayer, addleader, removeleader, group, groupold, reset, status, commend, stats, id, birthday, birthdays, stream, lobby, dev,
+  join, leave, open, close, addplayer, addleader, removeleader, group, groupold, reset, status, commend, stats, id, idother, birthday, birthdays, stream, lobby, dev,
 ];
